@@ -1,0 +1,70 @@
+# backend/config.yaml
+server:
+  port: 8080
+  env: development
+  log_level: info
+
+  # Rate limiting configuration
+  rate_limit:
+    enabled: true
+    rps: 10.0  # Requests per second per IP
+    burst: 20   # Maximum burst size
+
+  # Authentication configuration
+  auth:
+    require_auth: true
+    public_paths:
+      - /api/user/add
+      - /api/auth/login
+      - /api/auth/me
+      - /api/health
+      - /metrics
+
+  cors:
+    allowed_origins: ["*"]   # 或 ["*"] 放开
+    allowed_methods: ["GET", "POST", "DELETE", "PUT", "OPTIONS"]
+    allowed_headers: ["Content-Type", "Authorization", "X-Request-ID"]
+    expose_headers: ["X-Request-ID"]
+    allow_credentials: true
+
+  middleware:
+    enable_access_log: true
+
+database:
+  driver: "sqlite"  # 支持 sqlite, mysql, postgres
+  dsn: "data/teamspeak.db"  # SQLite 使用文件路径，MySQL/PostgreSQL 使用连接字符串
+  max_idle_conns: 10
+  max_open_conns: 100
+  conn_max_lifetime: "1h"
+  auto_migrate: true
+
+monitoring:
+  collect_interval: 60s
+  alert:
+    enabled: true
+    notify_methods: ["console", "email"]
+    thresholds:
+      cpu: 90
+      memory: 85
+      disk: 80
+      voice_quality: 0.7
+
+teamspeak:
+  host: 127.0.0.1
+  query_port: 10011
+  virtual_server_port: 30033
+  virtual_server_id: 0
+  username: serveradmin
+  password: "your_password_here"
+  nickname: "Monitoring Bot"
+  reconnect_max_retries: 5
+  reconnect_initial_backoff: 1   # seconds
+  reconnect_max_backoff: 30      # seconds
+
+security:
+  jwt_secret: "your_jwt_secret_here"
+  password_salt_rounds: 10
+
+deployment:
+  script_dir: "deploy-scripts"
+  timeout: "10m"

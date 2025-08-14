@@ -1,0 +1,58 @@
+// backend/main.go
+package main
+
+import (
+	"log"
+
+	"teamspeak-one-click-deploy/config"
+	"teamspeak-one-click-deploy/database"
+	"teamspeak-one-click-deploy/instance"
+	"teamspeak-one-click-deploy/monitor"
+	"teamspeak-one-click-deploy/server"
+)
+
+func main() {
+	// Load configuration
+	cfg, err := config.Load("config.yaml")
+	if err != nil {
+		log.Fatalf("Failed to load config: %v", err)
+	}
+
+	// 初始化数据库
+	if err := server.InitDatabase(cfg); err != nil {
+		log.Fatalf("Failed to initialize database: %v", err)
+	}
+
+	// 确保在程序退出时关闭数据库连接
+	defer func() {
+		if err := database.Close(); err != nil {
+			log.Printf("Error closing database connection: %v", err)
+		}
+	}()
+
+	// 初始化实例服务
+	if err := instance.Initialize(); err != nil {
+		log.Fatalf("Failed to initialize instance service: %v", err)
+	}
+
+	// 初始化部署模块
+	if err := server.InitDeployment(cfg); err != nil {
+		log.Fatalf("Failed to initialize deployment module: %v", err)
+	}
+
+	// 加载监控模块配置
+	if err := monitor.LoadConfigFromFile("config.yaml"); err != nil {
+		log.Printf("WARNING: failed to load monitoring config: %v (using defaults)", err)
+	}
+
+	// 创建并配置路由引擎
+	routerEngine, err := server.SetupRouter(cfg)
+	if err != nil {
+		log.Fatalf("Failed to setup router: %v", err)
+	}
+
+	// 启动服务器
+	if err := server.StartServer(routerEngine, cfg); err != nil {
+		log.Fatalf("Failed to start server: %v", err)
+	}
+}
