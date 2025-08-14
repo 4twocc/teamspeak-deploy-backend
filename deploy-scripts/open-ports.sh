@@ -54,12 +54,17 @@ elif command -v iptables &> /dev/null; then
         # Debian系统使用netfilter-persistent保存规则
         echo "Saving iptables rules for Debian..."
         netfilter-persistent save
-    elif command -v service &> /dev/null; then
-        service iptables save
+    elif command -v service &> /dev/null && service iptables save 2>/dev/null; then
+        # 尝试使用service命令保存（仅在支持的系统上）
+        echo "Saving iptables rules with service command..."
     elif command -v netfilter-persistent &> /dev/null; then
+        # 使用netfilter-persistent（如果可用）
+        echo "Saving iptables rules with netfilter-persistent..."
         netfilter-persistent save
     else
-        echo "Warning: Unable to save iptables rules. They may be lost after reboot."
+        # 手动保存规则（通用方法）
+        echo "Saving iptables rules manually..."
+        iptables-save > /etc/iptables/rules.v4 2>/dev/null || echo "Warning: Unable to save iptables rules. They may be lost after reboot."
     fi
     
     echo "Ports opened successfully with iptables"
