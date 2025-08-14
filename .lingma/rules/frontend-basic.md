@@ -8,10 +8,12 @@
 
 # 技术栈
 - react 19.1.0
+- zustand
 - tailwindcss 4.1.11
 - typescript 5.8.3
 - react-query
 - shadcnui
+- eslint
 
 # 开发流程
 先编写技术方案，然后再实现具体逻辑
