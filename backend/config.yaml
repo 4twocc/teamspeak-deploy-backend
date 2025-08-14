@@ -62,7 +62,7 @@ teamspeak:
   reconnect_max_backoff: 30      # seconds
 
 security:
-  jwt_secret: "your_jwt_secret_here"
+  jwt_secret: "sBlHwqy/BEA/pJVAdgOHRK83svNUQHqSP2Qtj3J8cJE="
   password_salt_rounds: 10
 
 deployment:

@@ -24,6 +24,31 @@ import (
 	"gorm.io/gorm"
 )
 
+// configWrapper 包装配置以适配认证模块的接口
+type configWrapper struct {
+	config *config.Config
+}
+
+func (cw *configWrapper) GetServerConfig() interface{ GetAuthConfig() interface{ GetPublicPaths() []string } } {
+	return &serverConfigWrapper{config: cw.config}
+}
+
+type serverConfigWrapper struct {
+	config *config.Config
+}
+
+func (scw *serverConfigWrapper) GetAuthConfig() interface{ GetPublicPaths() []string } {
+	return &authConfigWrapper{config: scw.config}
+}
+
+type authConfigWrapper struct {
+	config *config.Config
+}
+
+func (acw *authConfigWrapper) GetPublicPaths() []string {
+	return acw.config.Server.Auth.PublicPaths
+}
+
 // initDatabase 初始化数据库连接
 func InitDatabase(config *config.Config) error {
 	// 创建数据库配置
@@ -99,6 +124,9 @@ func SetupRouter(config *config.Config) (*gin.Engine, error) {
 
 	// 注册路由
 	router.RegisterRoutes(routerEngine)
+
+	// 设置认证模块的配置
+	auth.SetServerConfig(&configWrapper{config: config})
 
 	// 添加中间件
 	// 注意：Gin的CORS中间件需要单独配置
