@@ -68,4 +68,27 @@ then
     fi
 fi
 
+# 配置 Docker 镜像加速器和日志轮转
+echo "Configuring Docker daemon..."
+sudo mkdir -p /etc/docker
+sudo tee /etc/docker/daemon.json <<EOF
+{
+    "registry-mirrors": [
+        "https://docker.xuanyuan.me"
+    ],
+    "log-driver": "json-file",
+    "log-opts": {
+        "max-size": "20m",
+        "max-file": "3"
+    },
+    "userland-proxy": false,
+    "ipv6": true,
+    "fixed-cidr-v6": "fdb::/64",
+    "experimental":true,
+    "ip6tables":true
+}
+EOF
+sudo systemctl daemon-reload
+sudo systemctl restart docker
+
 echo "Environment initialization completed successfully"
