@@ -31,17 +31,37 @@ elif command -v firewall-cmd &> /dev/null; then
     firewall-cmd --reload
     echo "Ports opened successfully with firewalld"
 elif command -v iptables &> /dev/null; then
-    # 使用 iptables
-    echo "Detected iptables. Opening ports..."
+    # 检测是否为Debian系统
+    if [ -f /etc/debian_version ]; then
+        echo "Detected Debian system. Opening ports with iptables..."
+        # 安装iptables-persistent（如果尚未安装）
+        if ! dpkg -l | grep -q iptables-persistent; then
+            echo "Installing iptables-persistent..."
+            apt-get update
+            apt-get install -y iptables-persistent
+        fi
+    else
+        echo "Detected iptables. Opening ports..."
+    fi
+    
+    # 添加iptables规则
     iptables -A INPUT -p udp --dport 9987 -j ACCEPT
     iptables -A INPUT -p tcp --dport 10011 -j ACCEPT
     iptables -A INPUT -p tcp --dport 30033 -j ACCEPT
-    # 保存规则（不同发行版保存方式不同）
-    if command -v service &> /dev/null; then
+    
+    # 保存规则
+    if [ -f /etc/debian_version ]; then
+        # Debian系统使用netfilter-persistent保存规则
+        echo "Saving iptables rules for Debian..."
+        netfilter-persistent save
+    elif command -v service &> /dev/null; then
         service iptables save
     elif command -v netfilter-persistent &> /dev/null; then
         netfilter-persistent save
+    else
+        echo "Warning: Unable to save iptables rules. They may be lost after reboot."
     fi
+    
     echo "Ports opened successfully with iptables"
 else
     echo "Warning: No supported firewall detected. Please manually open the following ports:"
