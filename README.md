@@ -98,7 +98,7 @@ API 文档可通过 `/api/docs` 端点访问。
 
 ### 后端开发
 
-1. 安装 Go 1.24.3+
+1. 安装 Go 1.24+
 2. 安装依赖: `go mod tidy`
 3. 运行服务: `go run main.go`
 

@@ -8,25 +8,39 @@ services:
     ports:
       - "8080:8080"
     volumes:
+      # 挂载源代码以支持热重载（开发环境）
+      - ./backend:/app
+      # 挂载配置文件
       - ./backend/config.yaml:/app/config.yaml
-      - ./backend/.env:/app/.env
+      # 挂载环境变量文件
+      - ./backend/.env.development:/app/.env
+      # 挂载数据目录
       - ./backend/data:/app/data
     restart: unless-stopped
     environment:
-      - SERVER_ENV=production
+      - SERVER_ENV=development
       - TEAMSPEAK_PASSWORD=${TEAMSPEAK_PASSWORD}
       - JWT_SECRET=${JWT_SECRET}
       - TEAMSPEAK_SERVER_QUERY_APIKEY=${TEAMSPEAK_SERVER_QUERY_APIKEY}
       - TEAMSPEAK_SERVER_ADMIN_TOEKN=${TEAMSPEAK_SERVER_ADMIN_TOEKN}
       - TEAMSPEAK_SERVER_ADMIN_USERNAME=${TEAMSPEAK_SERVER_ADMIN_USERNAME}
+    # 开发环境使用热重载
+    command: >
+      sh -c "
+      go mod download &&
+      go install github.com/githubnemo/CompileDaemon@latest &&
+      CompileDaemon -build='go build -o teamspeak-backend .' -command='./teamspeak-backend'
+      "
 
   frontend:
     build: ./frontend
     ports:
-      - "80:80"
+      - "3000:80"
     depends_on:
       - backend
     restart: unless-stopped
+    volumes:
+      - ./frontend/src:/app/src
 
   node-exporter:
     image: prom/node-exporter:latest
