@@ -1,6 +1,6 @@
 // src/pages/Instance/InstanceResources.tsx
 import React, { useEffect, useState } from 'react';
-import { Button } from '@/components/ui/button';
+import Button from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { RotateCw } from 'lucide-react';
 import { toast } from 'sonner';
@@ -51,7 +51,6 @@ const InstanceResources: React.FC<{ instanceId: string }> = ({ instanceId }) => 
       <div className="flex justify-between items-center mb-4">
         <h3 className="text-lg font-semibold">资源使用情况</h3>
         <Button 
-          variant="outline"
           onClick={fetchResources} 
           disabled={loading}
           className="flex items-center gap-2"

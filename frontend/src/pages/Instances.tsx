@@ -19,6 +19,7 @@ const Instances: React.FC = () => {
 
   const fetchInstances = async () => {
     try {
+      console.log(loading)
       setLoading(true)
       const response = await fetch('/api/v1/instances')
       const data = await response.json()

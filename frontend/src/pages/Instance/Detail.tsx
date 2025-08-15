@@ -5,7 +5,7 @@ import InstanceLogs from './InstanceLogs';
 import InstanceResources from './InstanceResources';
 import ResourceLimits from './ResourceLimits';
 import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import Button from '@/components/ui/button';
 import { 
   Play, 
   Square, 
@@ -101,8 +101,6 @@ const InstanceDetail: React.FC<{ instanceId: string }> = ({ instanceId }) => {
         <h2 className="text-2xl font-bold">实例详情</h2>
         <div className="flex gap-2">
           <Button 
-            variant="outline" 
-            size="sm"
             onClick={handleStart}
             disabled={loading}
             className="flex items-center gap-2"
@@ -111,8 +109,6 @@ const InstanceDetail: React.FC<{ instanceId: string }> = ({ instanceId }) => {
             启动
           </Button>
           <Button 
-            variant="outline" 
-            size="sm"
             onClick={handleStop}
             disabled={loading}
             className="flex items-center gap-2"
@@ -121,8 +117,6 @@ const InstanceDetail: React.FC<{ instanceId: string }> = ({ instanceId }) => {
             停止
           </Button>
           <Button 
-            variant="outline" 
-            size="sm"
             onClick={handleRestart}
             disabled={loading}
             className="flex items-center gap-2"
@@ -131,8 +125,6 @@ const InstanceDetail: React.FC<{ instanceId: string }> = ({ instanceId }) => {
             重启
           </Button>
           <Button 
-            variant="destructive" 
-            size="sm"
             onClick={() => setShowDeleteDialog(true)}
             disabled={loading}
             className="flex items-center gap-2"

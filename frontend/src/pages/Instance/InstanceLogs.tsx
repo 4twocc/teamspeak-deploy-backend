@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Button } from '@/components/ui/button';
+import Button from '@/components/ui/button';
 import { RotateCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { getInstanceLogs } from '@/api/instance';
@@ -40,7 +40,6 @@ const InstanceLogs: React.FC<InstanceLogsProps> = ({ instanceId }) => {
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-xl font-bold">实例日志</h2>
         <Button 
-          variant="outline" 
           onClick={fetchLogs} 
           disabled={loading}
           className="flex items-center gap-2"
