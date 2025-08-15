@@ -1,19 +1,33 @@
 // src/pages/Instance/InstanceResources.tsx
 import React, { useEffect, useState } from 'react';
-import { getInstanceResources } from '@/services/instance';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { RotateCw } from 'lucide-react';
+import { toast } from 'sonner';
 import type { ResourceUsage } from '@/types/Instance';
 
 const InstanceResources: React.FC<{ instanceId: string }> = ({ instanceId }) => {
   const [loading, setLoading] = useState(false);
-  const [resources, setResources] = useState<ResourceUsage | null>(null);
+  const [resources, setResources] = useState<ResourceUsage>();
 
   const fetchResources = async () => {
     try {
       setLoading(true);
-      const data = await getInstanceResources(instanceId);
-      setResources(data);
+      // 这里应该调用实际的API获取资源数据
+      // const data = await getInstanceResources(instanceId);
+      // 模拟数据
+      setResources({
+        cpu_percent: 45.2,
+        memory_mb: 256.7,
+        memory_percent: 25.6,
+        disk_usage_mb: 1024,
+        network_in: 102400,
+        network_out: 51200,
+        timestamp: new Date().toISOString()
+      });
     } catch (error) {
-      message.error('获取资源使用情况失败');
+      console.error(error)
+      toast.error('获取资源使用情况失败');
     } finally {
       setLoading(false);
     }
@@ -26,69 +40,75 @@ const InstanceResources: React.FC<{ instanceId: string }> = ({ instanceId }) => 
     return () => clearInterval(timer);
   }, [instanceId]);
 
-  const columns = [
-    {
-      title: '资源类型',
-      dataIndex: 'resource',
-      key: 'resource',
-    },
-    {
-      title: '使用量',
-      dataIndex: 'usage',
-      key: 'usage',
-      render: (text: string, record: any) => {
-        if (record.type === 'cpu') {
-          return <Progress percent={resources?.cpu_percent} status={resources?.cpu_percent > 80 ? 'exception' : 'normal'} />;
-        } else if (record.type === 'memory') {
-          return `${(resources?.memory_mb || 0).toFixed(2)} MB (${resources?.memory_percent.toFixed(2)}%)`;
-        } else if (record.type === 'disk') {
-          return `${resources?.disk_usage_mb} MB`;
-        }
-        return text;
-      },
-    },
-    {
-      title: '状态',
-      dataIndex: 'status',
-      key: 'status',
-      render: (text: string, record: any) => {
-        let isOverLimit = false;
-        if (record.type === 'cpu' && resources?.cpu_percent > 80) {
-          isOverLimit = true;
-        } else if (record.type === 'memory' && resources?.memory_percent > 80) {
-          isOverLimit = true;
-        }
-        
-        return isOverLimit ? <Tag color="error">超限</Tag> : <Tag color="success">正常</Tag>;
-      },
-    },
-  ];
-
-  const dataSource = [
-    { key: '1', resource: 'CPU', type: 'cpu' },
-    { key: '2', resource: '内存', type: 'memory' },
-    { key: '3', resource: '磁盘', type: 'disk' },
-  ];
+  const getStatus = (percent: number) => {
+    if (percent > 80) return 'error';
+    if (percent > 60) return 'warning';
+    return 'success';
+  };
 
   return (
-    <Card 
-      title="资源使用情况" 
-      extra={
+    <Card className="p-6">
+      <div className="flex justify-between items-center mb-4">
+        <h3 className="text-lg font-semibold">资源使用情况</h3>
         <Button 
-          icon={<ReloadOutlined />} 
+          variant="outline"
           onClick={fetchResources} 
-          loading={loading}
+          disabled={loading}
+          className="flex items-center gap-2"
         >
+          <RotateCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           刷新
         </Button>
-      }
-    >
-      <Table 
-        columns={columns} 
-        dataSource={dataSource} 
-        pagination={false}
-        loading={loading}
-      />
+      </div>
+      
+      <div className="space-y-4">
+        <div>
+          <div className="flex justify-between mb-1">
+            <span className="text-sm font-medium">CPU</span>
+            <span className="text-sm text-gray-500">{resources?.cpu_percent.toFixed(1)}%</span>
+          </div>
+          <div className="w-full bg-gray-200 rounded-full h-2.5">
+            <div 
+              className={`h-2.5 rounded-full ${
+                getStatus(resources?.cpu_percent || 0) === 'error' ? 'bg-red-600' : 
+                getStatus(resources?.cpu_percent || 0) === 'warning' ? 'bg-yellow-500' : 'bg-green-600'
+              }`} 
+              style={{ width: `${resources?.cpu_percent}%` }}
+            ></div>
+          </div>
+        </div>
+        
+        <div>
+          <div className="flex justify-between mb-1">
+            <span className="text-sm font-medium">内存</span>
+            <span className="text-sm text-gray-500">
+              {resources?.memory_mb.toFixed(1)} MB ({resources?.memory_percent.toFixed(1)}%)
+            </span>
+          </div>
+          <div className="w-full bg-gray-200 rounded-full h-2.5">
+            <div 
+              className={`h-2.5 rounded-full ${
+                getStatus(resources?.memory_percent || 0) === 'error' ? 'bg-red-600' : 
+                getStatus(resources?.memory_percent || 0) === 'warning' ? 'bg-yellow-500' : 'bg-green-600'
+              }`} 
+              style={{ width: `${resources?.memory_percent}%` }}
+            ></div>
+          </div>
+        </div>
+        
+        <div>
+          <div className="flex justify-between mb-1">
+            <span className="text-sm font-medium">磁盘</span>
+            <span className="text-sm text-gray-500">{resources?.disk_usage_mb} MB</span>
+          </div>
+          <div className="w-full bg-gray-200 rounded-full h-2.5">
+            <div 
+              className="h-2.5 rounded-full bg-blue-600" 
+              style={{ width: '40%' }}
+            ></div>
+          </div>
+        </div>
+      </div>
     </Card>
   );
 };

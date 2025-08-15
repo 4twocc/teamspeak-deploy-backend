@@ -1,9 +1,14 @@
 import React, { useEffect, useState } from 'react'
-import type { TSInstance } from '@/types/Instance'
+import { toast } from 'sonner'
+import { Card } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Trash2, Play, Square, RotateCw, Plus } from 'lucide-react'
+import type { TSInstance} from '@/types/Instance'
 
 const Instances: React.FC = () => {
   const [instances, setInstances] = useState<TSInstance[]>([])
-  const [loading, setLoading] = useState(false)
+  const [_loading, setLoading] = useState(false)
   const [name, setName] = useState('')
   const [serverName, setServerName] = useState('')
   const [maxClients, setMaxClients] = useState(32)
@@ -19,7 +24,7 @@ const Instances: React.FC = () => {
       const data = await response.json()
       setInstances(data.data || [])
     } catch (error) {
-      message.error('获取实例列表失败: ' + error)
+      toast.error('获取实例列表失败: ' + error)
     } finally {
       setLoading(false)
     }
@@ -27,7 +32,7 @@ const Instances: React.FC = () => {
 
   const createInstance = async () => {
     if (!name || !serverName) {
-      message.warning('请填写实例名和服务器名')
+      toast.warning('请填写实例名和服务器名')
       return
     }
 
@@ -52,17 +57,17 @@ const Instances: React.FC = () => {
       })
 
       if (response.ok) {
-        message.success('实例创建成功')
+        toast.success('实例创建成功')
         setName('')
         setServerName('')
         setMaxClients(32)
         fetchInstances()
       } else {
         const error = await response.json()
-        message.error('创建实例失败: ' + (error.message || '未知错误'))
+        toast.error('创建实例失败: ' + (error.message || '未知错误'))
       }
     } catch (error) {
-      message.error('创建实例失败: ' + error)
+      toast.error('创建实例失败: ' + error)
     }
   }
 
@@ -73,14 +78,14 @@ const Instances: React.FC = () => {
       })
 
       if (response.ok) {
-        message.success('实例删除成功')
+        toast.success('实例删除成功')
         fetchInstances()
       } else {
         const error = await response.json()
-        message.error('删除实例失败: ' + (error.message || '未知错误'))
+        toast.error('删除实例失败: ' + (error.message || '未知错误'))
       }
     } catch (error) {
-      message.error('删除实例失败: ' + error)
+      toast.error('删除实例失败: ' + error)
     }
   }
 
@@ -91,14 +96,14 @@ const Instances: React.FC = () => {
       })
 
       if (response.ok) {
-        message.success('启动实例请求已提交')
+        toast.success('启动实例请求已提交')
         fetchInstances()
       } else {
         const error = await response.json()
-        message.error('启动实例失败: ' + (error.message || '未知错误'))
+        toast.error('启动实例失败: ' + (error.message || '未知错误'))
       }
     } catch (error) {
-      message.error('启动实例失败: ' + error)
+      toast.error('启动实例失败: ' + error)
     }
   }
 
@@ -109,14 +114,14 @@ const Instances: React.FC = () => {
       })
 
       if (response.ok) {
-        message.success('停止实例请求已提交')
+        toast.success('停止实例请求已提交')
         fetchInstances()
       } else {
         const error = await response.json()
-        message.error('停止实例失败: ' + (error.message || '未知错误'))
+        toast.error('停止实例失败: ' + (error.message || '未知错误'))
       }
     } catch (error) {
-      message.error('停止实例失败: ' + error)
+      toast.error('停止实例失败: ' + error)
     }
   }
 
@@ -127,135 +132,130 @@ const Instances: React.FC = () => {
       })
 
       if (response.ok) {
-        message.success('重启实例请求已提交')
+        toast.success('重启实例请求已提交')
         fetchInstances()
       } else {
         const error = await response.json()
-        message.error('重启实例失败: ' + (error.message || '未知错误'))
+        toast.error('重启实例失败: ' + (error.message || '未知错误'))
       }
     } catch (error) {
-      message.error('重启实例失败: ' + error)
+      toast.error('重启实例失败: ' + error)
     }
   }
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'running': return 'success'
-      case 'stopped': return 'default'
+      case 'running': return 'bg-green-500'
+      case 'stopped': return 'bg-gray-500'
       case 'starting':
-      case 'stopping': return 'processing'
-      case 'error': return 'error'
-      default: return 'default'
+      case 'stopping': return 'bg-blue-500'
+      case 'error': return 'bg-red-500'
+      default: return 'bg-gray-500'
     }
   }
 
   return (
     <div className="p-8">
-      <Title level={2}>TeamSpeak 实例管理</Title>
+      <h2 className="text-2xl font-bold mb-6">TeamSpeak 实例管理</h2>
       
-      <Card title="创建新实例" style={{ marginBottom: 24 }}>
-        <Space direction="vertical" style={{ width: '100%' }}>
-          <Space>
-            <Input 
-              placeholder="实例名" 
-              value={name} 
-              onChange={e => setName(e.target.value)} 
-              style={{ width: 200 }}
-            />
-            <Input 
-              placeholder="服务器名" 
-              value={serverName} 
-              onChange={e => setServerName(e.target.value)} 
-              style={{ width: 200 }}
-            />
-            <Input 
-              type="number"
-              placeholder="最大客户端数" 
-              value={maxClients} 
-              onChange={e => setMaxClients(Number(e.target.value))} 
-              style={{ width: 150 }}
-            />
-            <Button 
-              type="primary" 
-              icon={<PlusOutlined />} 
-              onClick={createInstance}
-            >
-              创建实例
-            </Button>
-          </Space>
-        </Space>
+      <Card className="p-6 mb-6">
+        <h3 className="text-xl font-semibold mb-4">创建新实例</h3>
+        <div className="flex flex-wrap gap-2">
+          <Input 
+            placeholder="实例名" 
+            value={name} 
+            onChange={e => setName(e.target.value)} 
+            className="w-48"
+          />
+          <Input 
+            placeholder="服务器名" 
+            value={serverName} 
+            onChange={e => setServerName(e.target.value)} 
+            className="w-48"
+          />
+          <Input 
+            type="number"
+            placeholder="最大客户端数" 
+            value={maxClients} 
+            onChange={e => setMaxClients(Number(e.target.value))} 
+            className="w-32"
+          />
+          <Button 
+            onClick={createInstance}
+            className="flex items-center gap-2"
+          >
+            <Plus className="w-4 h-4" />
+            创建实例
+          </Button>
+        </div>
       </Card>
 
-      <Card title="实例列表">
-        <List
-          loading={loading}
-          dataSource={instances}
-          renderItem={instance => (
-            <List.Item
-              actions={[
+      <Card className="p-6">
+        <h3 className="text-xl font-semibold mb-4">实例列表</h3>
+        <div className="space-y-4">
+          {instances.map(instance => (
+            <div key={instance.id} className="border rounded-lg p-4 flex flex-col sm:flex-row justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <h4 className="font-medium">{instance.name}</h4>
+                  <span className={`px-2 py-1 rounded text-white text-xs ${getStatusColor(instance.status)}`}>
+                    {instance.status}
+                  </span>
+                </div>
+                <div className="text-sm text-gray-600 space-y-1">
+                  <p>
+                    服务器: {instance.config.server_name} | 
+                    语音端口: {instance.config.voice_port} | 
+                    版本: {instance.version}
+                  </p>
+                  <p>
+                    创建时间: {new Date(instance.created_at).toLocaleString()}
+                  </p>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2">
                 <Button 
-                  type="primary" 
-                  icon={<PlayCircleOutlined />} 
-                  size="small"
-                  disabled={instance.status !== 'stopped'}
+                  size="sm"
                   onClick={() => startInstance(instance.id)}
+                  disabled={instance.status !== 'stopped'}
+                  className="flex items-center gap-1"
                 >
+                  <Play className="w-4 h-4" />
                   启动
-                </Button>,
+                </Button>
                 <Button 
-                  icon={<StopOutlined />} 
-                  size="small"
-                  disabled={instance.status !== 'running'}
+                  variant="outline"
+                  size="sm"
                   onClick={() => stopInstance(instance.id)}
+                  disabled={instance.status !== 'running'}
+                  className="flex items-center gap-1"
                 >
+                  <Square className="w-4 h-4" />
                   停止
-                </Button>,
+                </Button>
                 <Button 
-                  icon={<RedoOutlined />} 
-                  size="small"
-                  disabled={instance.status !== 'running' && instance.status !== 'error'}
+                  variant="outline"
+                  size="sm"
                   onClick={() => restartInstance(instance.id)}
+                  disabled={instance.status !== 'running' && instance.status !== 'error'}
+                  className="flex items-center gap-1"
                 >
+                  <RotateCw className="w-4 h-4" />
                   重启
-                </Button>,
-                <Popconfirm
-                  title="确认删除实例？"
-                  description="此操作不可恢复"
-                  onConfirm={() => deleteInstance(instance.id)}
-                  okText="确认"
-                  cancelText="取消"
+                </Button>
+                <Button 
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => deleteInstance(instance.id)}
+                  className="flex items-center gap-1"
                 >
-                  <Button icon={<DeleteOutlined />} size="small" danger>
-                    删除
-                  </Button>
-                </Popconfirm>
-              ]}
-            >
-              <List.Item.Meta
-                title={
-                  <Space>
-                    <span>{instance.name}</span>
-                    <Tag color={getStatusColor(instance.status)}>
-                      {instance.status}
-                    </Tag>
-                  </Space>
-                }
-                description={
-                  <Space direction="vertical" size="small">
-                    <Text type="secondary">
-                      服务器: {instance.config.server_name} | 
-                      语音端口: {instance.config.voice_port} | 
-                      版本: {instance.version}
-                    </Text>
-                    <Text type="secondary">
-                      创建时间: {new Date(instance.created_at).toLocaleString()}
-                    </Text>
-                  </Space>
-                }
-              />
-            </List.Item>
-          )}
-        />
+                  <Trash2 className="w-4 h-4" />
+                  删除
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
       </Card>
     </div>
   )
