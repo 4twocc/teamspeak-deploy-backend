@@ -1,7 +1,7 @@
 // src/components/Layout.tsx
 import { useState, useEffect } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { Button } from '../ui/button';
+import Button from '../ui/button';
 import { Menu, X } from 'lucide-react';
 import { NavLink } from './NavLink';
 import { Toaster } from 'sonner';
@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils';
 
 export function Layout() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -28,7 +28,10 @@ export function Layout() {
       {/* Mobile menu button */}
       <div className="lg:hidden bg-white shadow-sm">
         <div className="flex justify-between items-center px-4 h-16">
-          <Button variant="ghost" onClick={() => setIsMenuOpen(!isMenuOpen)}>
+          <Button 
+            className="hover:bg-gray-100 rounded-md p-2"
+            onClick={() => setIsMenuOpen(!isMenuOpen)}
+          >
             {isMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
           </Button>
         </div>
@@ -54,7 +57,6 @@ export function Layout() {
             </div>
             <div className="p-4 border-t">
               <Button 
-                variant="outline" 
                 className="w-full"
                 onClick={handleLogout}
               >

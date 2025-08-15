@@ -1,7 +1,7 @@
 // frontend/src/pages/Dashboard.tsx
 import React, { useState, useEffect } from 'react'
 import { Card } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
+import Button from '@/components/ui/button'
 import { toast } from 'sonner'
 
 const Dashboard: React.FC = () => {
@@ -59,7 +59,7 @@ const Dashboard: React.FC = () => {
     <div className="p-8">
       <h2 className="text-2xl font-bold mb-6">控制面板</h2>
       
-      <div className="space-y-6">
+      <div className="space-y-8">
         <Card className="p-6">
           <h3 className="text-xl font-semibold mb-4">一键部署 TeamSpeak</h3>
           <div className="space-y-4">
@@ -76,12 +76,13 @@ const Dashboard: React.FC = () => {
               <Button 
                 onClick={startDeploy}
                 disabled={loading || deployStatus.status === 'running'}
+                className="w-full sm:w-auto"
               >
                 {loading ? '部署中...' : '开始部署'}
               </Button>
               <Button 
-                variant="outline"
                 onClick={fetchDeployStatus}
+                className="w-full sm:w-auto"
               >
                 刷新状态
               </Button>
@@ -109,7 +110,7 @@ const Dashboard: React.FC = () => {
         </Card>
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default Dashboard
+export default Dashboard;

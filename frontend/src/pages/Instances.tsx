@@ -1,14 +1,14 @@
 import React, { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { Card } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
+import Button from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Trash2, Play, Square, RotateCw, Plus } from 'lucide-react'
 import type { TSInstance} from '@/types/Instance'
 
 const Instances: React.FC = () => {
   const [instances, setInstances] = useState<TSInstance[]>([])
-  const [_loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(false)
   const [name, setName] = useState('')
   const [serverName, setServerName] = useState('')
   const [maxClients, setMaxClients] = useState(32)
@@ -215,7 +215,6 @@ const Instances: React.FC = () => {
               </div>
               <div className="flex flex-wrap gap-2">
                 <Button 
-                  size="sm"
                   onClick={() => startInstance(instance.id)}
                   disabled={instance.status !== 'stopped'}
                   className="flex items-center gap-1"
@@ -224,8 +223,6 @@ const Instances: React.FC = () => {
                   启动
                 </Button>
                 <Button 
-                  variant="outline"
-                  size="sm"
                   onClick={() => stopInstance(instance.id)}
                   disabled={instance.status !== 'running'}
                   className="flex items-center gap-1"
@@ -234,8 +231,6 @@ const Instances: React.FC = () => {
                   停止
                 </Button>
                 <Button 
-                  variant="outline"
-                  size="sm"
                   onClick={() => restartInstance(instance.id)}
                   disabled={instance.status !== 'running' && instance.status !== 'error'}
                   className="flex items-center gap-1"
@@ -244,8 +239,6 @@ const Instances: React.FC = () => {
                   重启
                 </Button>
                 <Button 
-                  variant="destructive"
-                  size="sm"
                   onClick={() => deleteInstance(instance.id)}
                   className="flex items-center gap-1"
                 >

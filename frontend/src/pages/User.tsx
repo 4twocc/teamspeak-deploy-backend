@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { Card } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
+import Button from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '@/components/ui/select'
 
@@ -71,7 +71,7 @@ const Users: React.FC = () => {
 							<span>
 								{u.username}（{u.role}）
 							</span>
-							<Button variant="destructive" onClick={() => removeUser(u.username)}>
+							<Button onClick={() => removeUser(u.username)}>
 								删除
 							</Button>
 						</li>
