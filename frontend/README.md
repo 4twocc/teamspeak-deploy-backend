@@ -1,3 +1,44 @@
+# TeamSpeak One-Click Deploy Frontend
+
+This is the frontend for the TeamSpeak One-Click Deploy application.
+
+## Quick Start
+
+1. Install dependencies:
+   ```bash
+   # If you have pnpm installed
+   pnpm install
+   
+   # If you don't have pnpm, run the setup script first
+   ./setup-pnpm.sh
+   pnpm install
+   ```
+
+2. Start the development server:
+   ```bash
+   pnpm run dev
+   ```
+
+## Available Scripts
+
+- `pnpm run dev` - Start the development server
+- `pnpm run build` - Build for production
+- `pnpm run lint` - Run ESLint
+- `pnpm run preview` - Preview the production build
+
+## Environment Setup
+
+To ensure the fastest installation and optimal development experience in China, we recommend using the Taobao npm registry.
+
+You can run `./setup-pnpm.sh` to automatically:
+1. Check if pnpm is installed, and install it if not present
+2. Configure npm registry to https://registry.npmmirror.com
+
+The script will try multiple installation methods in order:
+1. Install via npm (if available)
+2. Install via curl (if available)
+3. Install via wget (if available)
+
 # React + TypeScript + Vite
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
@@ -67,3 +108,4 @@ export default tseslint.config([
   },
 ])
 ```
+

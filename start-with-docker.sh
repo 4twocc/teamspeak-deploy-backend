@@ -39,13 +39,17 @@ show_usage() {
     echo "  -d, --dev        使用开发模式启动 (支持热重载)"
     echo "  -b, --build      强制重新构建镜像"
     echo "  -r, --registry   配置 Docker 镜像源"
+    echo "  -p, --pnpm       安装并配置 pnpm"
     echo ""
     echo "示例:"
     echo "  ./start-with-docker.sh             # 生产模式启动"
     echo "  ./start-with-docker.sh -d          # 开发模式启动"
     echo "  ./start-with-docker.sh -b          # 强制重新构建并启动"
     echo "  ./start-with-docker.sh -r          # 配置 Docker 镜像源并启动"
+    echo "  ./start-with-docker.sh -p          # 安装并配置 pnpm 并启动"
+    echo "  ./start-with-docker.sh -r -p       # 配置 Docker 镜像源并安装配置 pnpm"
     echo "  ./start-with-docker.sh -r -d       # 配置 Docker 镜像源并以开发模式启动"
+    echo "  ./start-with-docker.sh -p -d       # 安装配置 pnpm 并以开发模式启动"
 }
 
 # 配置 Docker 镜像源
@@ -147,10 +151,70 @@ EOF
     print_info "Docker 镜像源配置完成"
 }
 
+# 检查并安装pnpm
+setup_pnpm() {
+    print_info "检查并设置pnpm..."
+    
+    # 切换到前端目录
+    cd frontend
+    
+    # 检查是否已安装pnpm
+    if command -v pnpm &> /dev/null; then
+        print_info "pnpm 已安装，版本: $(pnpm --version)"
+    else
+        print_warn "pnpm 未安装，正在安装..."
+        
+        # 方法1: 使用 npm 安装
+        if command -v npm &> /dev/null; then
+            print_info "使用npm安装pnpm..."
+            npm install -g pnpm
+        else
+            # 方法2: 使用 curl 安装
+            if command -v curl &> /dev/null; then
+                print_info "使用curl安装pnpm..."
+                curl -fsSL https://get.pnpm.io/install.sh | sh -
+            else
+                # 方法3: 使用 wget 安装
+                if command -v wget &> /dev/null; then
+                    print_info "使用wget安装pnpm..."
+                    wget -qO- https://get.pnpm.io/install.sh | sh -
+                else
+                    print_error "无法安装pnpm: 没有找到可用的安装方法 (npm, curl, wget)"
+                    cd ..
+                    exit 1
+                fi
+            fi
+        fi
+        
+        print_info "pnpm安装成功，版本: $(pnpm --version)"
+    fi
+    
+    # 配置npm registry
+    print_info "配置npm registry为淘宝镜像..."
+    
+    # 配置npm
+    if command -v npm &> /dev/null; then
+        npm config set registry https://registry.npmmirror.com
+        print_info "npm registry配置完成"
+    else
+        print_warn "未找到npm命令，跳过npm registry配置"
+    fi
+    
+    # 配置.npmrc文件
+    echo "registry=https://registry.npmmirror.com" > .npmrc
+    print_info ".npmrc文件配置完成"
+    
+    # 返回上级目录
+    cd ..
+    
+    print_info "pnpm环境设置完成！"
+}
+
 # 默认参数
 DEV_MODE=false
 FORCE_BUILD=false
 CONFIGURE_REGISTRY=false
+PNPM_SETUP=false
 
 # 解析命令行参数
 while [[ $# -gt 0 ]]; do
@@ -169,6 +233,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         -r|--registry)
             CONFIGURE_REGISTRY=true
+            shift
+            ;;
+        -p|--pnpm)
+            PNPM_SETUP=true
             shift
             ;;
         *)
@@ -208,6 +276,11 @@ print_info "Docker 环境检查通过"
 # 配置 Docker 镜像源（如果需要）
 if [ "$CONFIGURE_REGISTRY" = true ]; then
     configure_docker_registry
+fi
+
+# 设置pnpm（如果需要）
+if [ "$PNPM_SETUP" = true ]; then
+    setup_pnpm
 fi
 
 # 检查环境变量文件
