@@ -5,6 +5,7 @@ WORKDIR /app
 COPY . .
 
 # 添加构建参数
+RUN go env -w GOPROXY=https://goproxy.cn,direct
 RUN go mod download
 RUN CGO_ENABLED=0 GOOS=linux go build -o teamspeak-backend .
 
