@@ -82,7 +82,11 @@ if ! command -v docker &> /dev/null; then
 fi
 
 # 检查 Docker Compose 是否安装
-if ! command -v docker-compose &> /dev/null; then
+if command -v docker-compose &> /dev/null; then
+    DOCKER_COMPOSE_CMD="docker-compose"
+elif docker compose version &> /dev/null; then
+    DOCKER_COMPOSE_CMD="docker compose"
+else
     print_error "未找到 Docker Compose，请先安装 Docker Compose"
     exit 1
 fi
@@ -111,6 +115,6 @@ fi
 
 # 停止服务
 print_info "停止服务..."
-docker-compose -f $COMPOSE_FILE down $DOWN_OPTION
+$DOCKER_COMPOSE_CMD -f $COMPOSE_FILE down $DOWN_OPTION
 
 print_info "服务已停止"

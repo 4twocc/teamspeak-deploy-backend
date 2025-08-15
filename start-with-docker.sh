@@ -87,7 +87,11 @@ if ! command -v docker &> /dev/null; then
 fi
 
 # 检查 Docker Compose 是否安装
-if ! command -v docker-compose &> /dev/null; then
+if command -v docker-compose &> /dev/null; then
+    DOCKER_COMPOSE_CMD="docker-compose"
+elif docker compose version &> /dev/null; then
+    DOCKER_COMPOSE_CMD="docker compose"
+else
     print_error "未找到 Docker Compose，请先安装 Docker Compose"
     exit 1
 fi
@@ -142,9 +146,9 @@ fi
 # 启动服务
 print_info "启动服务..."
 if [ "$DEV_MODE" = true ]; then
-    docker-compose -f $COMPOSE_FILE up $BUILD_OPTION -d
+    $DOCKER_COMPOSE_CMD -f $COMPOSE_FILE up $BUILD_OPTION -d
 else
-    docker-compose -f $COMPOSE_FILE up $BUILD_OPTION -d
+    $DOCKER_COMPOSE_CMD -f $COMPOSE_FILE up $BUILD_OPTION -d
 fi
 
 # 等待服务启动
@@ -153,7 +157,7 @@ sleep 5
 
 # 检查服务状态
 print_info "检查服务状态..."
-docker-compose -f $COMPOSE_FILE ps
+$DOCKER_COMPOSE_CMD -f $COMPOSE_FILE ps
 
 print_info "服务启动完成！"
 print_info "后端服务地址: http://localhost:8080"
@@ -165,7 +169,7 @@ fi
 print_info "监控指标地址: http://localhost:9100"
 
 print_info "使用以下命令查看日志:"
-print_info "  docker-compose -f $COMPOSE_FILE logs -f"
+print_info "  $DOCKER_COMPOSE_CMD -f $COMPOSE_FILE logs -f"
 print_info ""
 print_info "使用以下命令停止服务:"
-print_info "  docker-compose -f $COMPOSE_FILE down"
+print_info "  $DOCKER_COMPOSE_CMD -f $COMPOSE_FILE down"

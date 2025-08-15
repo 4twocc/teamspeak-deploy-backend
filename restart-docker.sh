@@ -82,7 +82,11 @@ if ! command -v docker &> /dev/null; then
 fi
 
 # 检查 Docker Compose 是否安装
-if ! command -v docker-compose &> /dev/null; then
+if command -v docker-compose &> /dev/null; then
+    DOCKER_COMPOSE_CMD="docker-compose"
+elif docker compose version &> /dev/null; then
+    DOCKER_COMPOSE_CMD="docker compose"
+else
     print_error "未找到 Docker Compose，请先安装 Docker Compose"
     exit 1
 fi
@@ -111,7 +115,7 @@ fi
 
 # 重启服务
 print_info "重启服务..."
-docker-compose -f $COMPOSE_FILE up $BUILD_OPTION -d --force-recreate
+$DOCKER_COMPOSE_CMD -f $COMPOSE_FILE up $BUILD_OPTION -d --force-recreate
 
 # 等待服务启动
 print_info "等待服务启动..."
@@ -119,7 +123,7 @@ sleep 5
 
 # 检查服务状态
 print_info "检查服务状态..."
-docker-compose -f $COMPOSE_FILE ps
+$DOCKER_COMPOSE_CMD -f $COMPOSE_FILE ps
 
 print_info "服务重启完成！"
 print_info "后端服务地址: http://localhost:8080"
