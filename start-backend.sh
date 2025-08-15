@@ -95,6 +95,7 @@ cd backend
 
 # 检查并安装依赖
 print_info "检查和安装依赖..."
+go env -w GOPROXY=https://goproxy.cn,direct
 go mod tidy
 
 # 检查环境变量文件
