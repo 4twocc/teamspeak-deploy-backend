@@ -21,7 +21,8 @@ Godeps/
 
 # Environment files
 .env
-!.env.example
+!.env.development
+!.env.production
 
 # Data directory
 data/
