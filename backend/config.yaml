@@ -55,14 +55,14 @@ teamspeak:
   virtual_server_port: 30033
   virtual_server_id: 0
   username: serveradmin
-  password: "your_password_here"
+  password: "set_your_password_here"  # 通过环境变量TEAMSPEAK_PASSWORD设置
   nickname: "Monitoring Bot"
   reconnect_max_retries: 5
   reconnect_initial_backoff: 1   # seconds
   reconnect_max_backoff: 30      # seconds
 
 security:
-  jwt_secret: "sBlHwqy/BEA/pJVAdgOHRK83svNUQHqSP2Qtj3J8cJE="
+  jwt_secret: "set_your_jwt_secret_here"  # 通过环境变量JWT_SECRET设置
   password_salt_rounds: 10
 
 deployment:

@@ -7,7 +7,14 @@ services:
       - "8080:8080"
     volumes:
       - ./backend/config.yaml:/app/config.yaml
+      - ./backend/.env:/app/.env
     restart: unless-stopped
+    environment:
+      - TEAMSPEAK_PASSWORD=${TEAMSPEAK_PASSWORD}
+      - JWT_SECRET=${JWT_SECRET}
+      - TEAMSPEAK_SERVER_QUERY_APIKEY=${TEAMSPEAK_SERVER_QUERY_APIKEY}
+      - TEAMSPEAK_SERVER_ADMIN_TOEKN=${TEAMSPEAK_SERVER_ADMIN_TOEKN}
+      - TEAMSPEAK_SERVER_ADMIN_USERNAME=${TEAMSPEAK_SERVER_ADMIN_USERNAME}
 
   frontend:
     build: ./frontend

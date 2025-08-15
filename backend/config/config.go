@@ -1,9 +1,10 @@
 package config
 
 import (
+	"os"
 	"time"
 
-	"github.com/spf13/viper"
+	"gopkg.in/yaml.v3"
 )
 
 // Config 应用配置结构
@@ -18,12 +19,12 @@ type Config struct {
 
 // ServerConfig 服务器配置
 type ServerConfig struct {
-	Port      string `mapstructure:"port"`
-	Env       string `mapstructure:"env"`
-	LogLevel  string `mapstructure:"log_level"`
-	RateLimit RateLimitConfig `mapstructure:"rate_limit"`
-	Auth      AuthConfig      `mapstructure:"auth"`
-	CORS      CORSConfig      `mapstructure:"cors"`
+	Port       string           `mapstructure:"port"`
+	Env        string           `mapstructure:"env"`
+	LogLevel   string           `mapstructure:"log_level"`
+	RateLimit  RateLimitConfig  `mapstructure:"rate_limit"`
+	Auth       AuthConfig       `mapstructure:"auth"`
+	CORS       CORSConfig       `mapstructure:"cors"`
 	Middleware MiddlewareConfig `mapstructure:"middleware"`
 }
 
@@ -36,8 +37,8 @@ type RateLimitConfig struct {
 
 // AuthConfig 认证配置
 type AuthConfig struct {
-	RequireAuth  bool     `mapstructure:"require_auth"`
-	PublicPaths  []string `mapstructure:"public_paths"`
+	RequireAuth bool     `mapstructure:"require_auth"`
+	PublicPaths []string `mapstructure:"public_paths"`
 }
 
 // CORSConfig CORS配置
@@ -66,42 +67,42 @@ type DatabaseConfig struct {
 
 // MonitoringConfig 监控配置
 type MonitoringConfig struct {
-	CollectInterval time.Duration    `mapstructure:"collect_interval"`
-	Alert           AlertConfig      `mapstructure:"alert"`
+	CollectInterval time.Duration `mapstructure:"collect_interval"`
+	Alert           AlertConfig   `mapstructure:"alert"`
 }
 
 // AlertConfig 告警配置
 type AlertConfig struct {
-	Enabled        bool     `mapstructure:"enabled"`
-	NotifyMethods  []string `mapstructure:"notify_methods"`
-	Thresholds     ThresholdConfig `mapstructure:"thresholds"`
+	Enabled       bool            `mapstructure:"enabled"`
+	NotifyMethods []string        `mapstructure:"notify_methods"`
+	Thresholds    ThresholdConfig `mapstructure:"thresholds"`
 }
 
 // ThresholdConfig 阈值配置
 type ThresholdConfig struct {
-	CPU     float64 `mapstructure:"cpu"`
-	Memory  float64 `mapstructure:"memory"`
-	Disk    float64 `mapstructure:"disk"`
+	CPU          float64 `mapstructure:"cpu"`
+	Memory       float64 `mapstructure:"memory"`
+	Disk         float64 `mapstructure:"disk"`
 	VoiceQuality float64 `mapstructure:"voice_quality"`
 }
 
 // TeamspeakConfig TeamSpeak配置
 type TeamspeakConfig struct {
-	Host                string        `mapstructure:"host"`
-	QueryPort           int           `mapstructure:"query_port"`
-	VirtualServerPort   int           `mapstructure:"virtual_server_port"`
-	VirtualServerID     int           `mapstructure:"virtual_server_id"`
-	Username            string        `mapstructure:"username"`
-	Password            string        `mapstructure:"password"`
-	Nickname            string        `mapstructure:"nickname"`
-	ReconnectMaxRetries int           `mapstructure:"reconnect_max_retries"`
+	Host                    string        `mapstructure:"host"`
+	QueryPort               int           `mapstructure:"query_port"`
+	VirtualServerPort       int           `mapstructure:"virtual_server_port"`
+	VirtualServerID         int           `mapstructure:"virtual_server_id"`
+	Username                string        `mapstructure:"username"`
+	Password                string        `mapstructure:"password"`
+	Nickname                string        `mapstructure:"nickname"`
+	ReconnectMaxRetries     int           `mapstructure:"reconnect_max_retries"`
 	ReconnectInitialBackoff time.Duration `mapstructure:"reconnect_initial_backoff"`
-	ReconnectMaxBackoff time.Duration `mapstructure:"reconnect_max_backoff"`
+	ReconnectMaxBackoff     time.Duration `mapstructure:"reconnect_max_backoff"`
 }
 
 // SecurityConfig 安全配置
 type SecurityConfig struct {
-	JWTSecret         string `mapstructure:"jwt_secret"`
+	JWTSecret          string `mapstructure:"jwt_secret"`
 	PasswordSaltRounds int    `mapstructure:"password_salt_rounds"`
 }
 
@@ -111,22 +112,75 @@ type DeploymentConfig struct {
 	Timeout   time.Duration `mapstructure:"timeout"`
 }
 
-// Load 加载配置文件
-func Load(configPath string) (*Config, error) {
-	viper.SetConfigFile(configPath)
-	
-	// 读取配置文件
-	if err := viper.ReadInConfig(); err != nil {
+// Load 从文件加载配置
+func Load(filename string) (*Config, error) {
+	configFile, err := os.ReadFile(filename)
+	if err != nil {
 		return nil, err
 	}
 
-	// 解析配置
 	var config Config
-	if err := viper.Unmarshal(&config); err != nil {
+	if err := yaml.Unmarshal(configFile, &config); err != nil {
 		return nil, err
 	}
+
+	// 从环境变量加载敏感配置（如果存在）
+	loadSensitiveConfigFromEnv(&config)
 
 	return &config, nil
+}
+
+// loadSensitiveConfigFromEnv 从环境变量加载敏感配置
+func loadSensitiveConfigFromEnv(config *Config) {
+	// 从环境变量加载 TeamSpeak 密码
+	if tsPassword := os.Getenv("TEAMSPEAK_PASSWORD"); tsPassword != "" {
+		config.Teamspeak.Password = tsPassword
+	}
+
+	// 从环境变量加载 JWT secret
+	if jwtSecret := os.Getenv("JWT_SECRET"); jwtSecret != "" {
+		config.Security.JWTSecret = jwtSecret
+	}
+
+	// 从环境变量加载数据库配置
+	if dbDSN := os.Getenv("DATABASE_DSN"); dbDSN != "" {
+		config.Database.DSN = dbDSN
+	}
+
+	if dbDriver := os.Getenv("DATABASE_DRIVER"); dbDriver != "" {
+		config.Database.Driver = dbDriver
+	}
+
+	// 从环境变量加载服务器配置
+	if port := os.Getenv("SERVER_PORT"); port != "" {
+		config.Server.Port = port
+	}
+
+	if env := os.Getenv("SERVER_ENV"); env != "" {
+		config.Server.Env = env
+	}
+
+	if logLevel := os.Getenv("SERVER_LOG_LEVEL"); logLevel != "" {
+		config.Server.LogLevel = logLevel
+	}
+
+	// 从环境变量加载监控配置
+	if interval := os.Getenv("MONITORING_COLLECT_INTERVAL"); interval != "" {
+		if d, err := time.ParseDuration(interval); err == nil {
+			config.Monitoring.CollectInterval = d
+		}
+	}
+
+	// 从环境变量加载部署配置
+	if scriptDir := os.Getenv("DEPLOYMENT_SCRIPT_DIR"); scriptDir != "" {
+		config.Deployment.ScriptDir = scriptDir
+	}
+
+	if timeout := os.Getenv("DEPLOYMENT_TIMEOUT"); timeout != "" {
+		if d, err := time.ParseDuration(timeout); err == nil {
+			config.Deployment.Timeout = d
+		}
+	}
 }
 
 // DefaultConfig 返回默认配置
@@ -195,7 +249,7 @@ func DefaultConfig() *Config {
 			ReconnectMaxBackoff:     30 * time.Second,
 		},
 		Security: SecurityConfig{
-			JWTSecret:         "your_jwt_secret_here",
+			JWTSecret:          "your_jwt_secret_here",
 			PasswordSaltRounds: 10,
 		},
 		Deployment: DeploymentConfig{

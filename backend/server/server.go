@@ -29,7 +29,9 @@ type configWrapper struct {
 	config *config.Config
 }
 
-func (cw *configWrapper) GetServerConfig() interface{ GetAuthConfig() interface{ GetPublicPaths() []string } } {
+func (cw *configWrapper) GetServerConfig() interface {
+	GetAuthConfig() interface{ GetPublicPaths() []string }
+} {
 	return &serverConfigWrapper{config: cw.config}
 }
 
