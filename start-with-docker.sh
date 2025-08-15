@@ -50,50 +50,101 @@ show_usage() {
 
 # 配置 Docker 镜像源
 configure_docker_registry() {
-    # 检查是否需要配置镜像源
-    if [ ! -f "/etc/docker/daemon.json" ]; then
-        print_info "配置 Docker 镜像加速器..."
-        
-        # 检查是否以 root 权限运行
-        if [ "$EUID" -ne 0 ] && ! command -v sudo &> /dev/null; then
-            print_warn "未找到 sudo 命令且当前不是 root 用户，跳过 Docker 镜像源配置"
-            return
-        fi
-        
-        # 创建目录
-        if command -v sudo &> /dev/null; then
-            sudo mkdir -p /etc/docker
-        else
-            mkdir -p /etc/docker
-        fi
-        
-        # 配置镜像源
-        if command -v sudo &> /dev/null; then
-            sudo tee /etc/docker/daemon.json <<EOF
-{
-    "registry-mirrors": [
-        "https://docker.xuanyuan.me"
-    ]
-}
-EOF
-            sudo systemctl daemon-reload
-            sudo systemctl restart docker
-        else
-            tee /etc/docker/daemon.json <<EOF
-{
-    "registry-mirrors": [
-        "https://docker.xuanyuan.me"
-    ]
-}
-EOF
-            systemctl daemon-reload
-            systemctl restart docker
-        fi
-        
-        print_info "Docker 镜像源配置完成"
-    else
-        print_info "Docker 配置文件已存在，跳过镜像源配置"
+    print_info "配置 Docker 镜像加速器..."
+    
+    # 检查是否以 root 权限运行
+    if [ "$EUID" -ne 0 ] && ! command -v sudo &> /dev/null; then
+        print_warn "未找到 sudo 命令且当前不是 root 用户，跳过 Docker 镜像源配置"
+        return
     fi
+    
+    # 创建目录
+    if command -v sudo &> /dev/null; then
+        sudo mkdir -p /etc/docker
+    else
+        mkdir -p /etc/docker
+    fi
+    
+    # 配置镜像源（强制更新配置）
+    if command -v sudo &> /dev/null; then
+        sudo tee /etc/docker/daemon.json <<EOF
+{
+  "registry-mirrors": [
+    "https://docker.registry.cyou",
+    "https://docker-cf.registry.cyou",
+    "https://dockercf.jsdelivr.fyi",
+    "https://docker.jsdelivr.fyi",
+    "https://dockertest.jsdelivr.fyi",
+    "https://mirror.aliyuncs.com",
+    "https://dockerproxy.com",
+    "https://mirror.baidubce.com",
+    "https://docker.m.daocloud.io",
+    "https://docker.nju.edu.cn",
+    "https://docker.mirrors.sjtug.sjtu.edu.cn",
+    "https://docker.mirrors.ustc.edu.cn",
+    "https://mirror.iscas.ac.cn",
+    "https://docker.rainbond.cc",
+    "https://do.nark.eu.org",
+    "https://dc.j8.work",
+    "https://dockerproxy.com",
+    "https://gst6rzl9.mirror.aliyuncs.com",
+    "https://registry.docker-cn.com",
+    "http://hub-mirror.c.163.com",
+    "http://mirrors.ustc.edu.cn/",
+    "https://mirrors.tuna.tsinghua.edu.cn/",
+    "http://mirrors.sohu.com/"
+  ],
+  "insecure-registries": [
+    "registry.docker-cn.com",
+    "docker.mirrors.ustc.edu.cn"
+  ],
+  "debug": true,
+  "experimental": false
+}
+EOF
+        sudo systemctl daemon-reload
+        sudo systemctl restart docker
+    else
+        tee /etc/docker/daemon.json <<EOF
+{
+  "registry-mirrors": [
+    "https://docker.registry.cyou",
+    "https://docker-cf.registry.cyou",
+    "https://dockercf.jsdelivr.fyi",
+    "https://docker.jsdelivr.fyi",
+    "https://dockertest.jsdelivr.fyi",
+    "https://mirror.aliyuncs.com",
+    "https://dockerproxy.com",
+    "https://mirror.baidubce.com",
+    "https://docker.m.daocloud.io",
+    "https://docker.nju.edu.cn",
+    "https://docker.mirrors.sjtug.sjtu.edu.cn",
+    "https://docker.mirrors.ustc.edu.cn",
+    "https://mirror.iscas.ac.cn",
+    "https://docker.rainbond.cc",
+    "https://do.nark.eu.org",
+    "https://dc.j8.work",
+    "https://dockerproxy.com",
+    "https://gst6rzl9.mirror.aliyuncs.com",
+    "https://registry.docker-cn.com",
+    "http://hub-mirror.c.163.com",
+    "http://mirrors.ustc.edu.cn/",
+    "https://mirrors.tuna.tsinghua.edu.cn/",
+    "http://mirrors.sohu.com/"
+  ],
+  "insecure-registries": [
+    "registry.docker-cn.com",
+    "docker.mirrors.ustc.edu.cn"
+  ],
+  "debug": true,
+  "experimental": false
+}
+EOF
+        systemctl daemon-reload
+        systemctl restart docker
+    fi
+    
+    print_info "Docker 镜像源配置完成"
 }
 
 # 默认参数
