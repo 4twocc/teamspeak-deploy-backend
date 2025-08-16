@@ -293,7 +293,7 @@ ENV_FILE_FOUND=false
 
 for env_file in "${ENV_FILES[@]}"; do
     if [ -f "$env_file" ]; then
-        print_warn "找到环境变量文件: $env_file"
+        print_success "找到环境变量文件: $env_file"
         ENV_FILE_FOUND=true
         break
     fi
