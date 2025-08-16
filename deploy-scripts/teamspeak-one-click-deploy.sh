@@ -55,7 +55,7 @@ while true; do
     print_info "3. 一键部署"
     print_info "4. 执行所有步骤（推荐）"
     print_info "5. 退出"
-    print_info -p "请输入您的选择（1-5）: " choice
+    red -p "请输入您的选择（1-5）: " choice
     
     case $choice in 
         1)
