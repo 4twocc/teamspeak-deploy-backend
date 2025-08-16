@@ -12,6 +12,7 @@ import (
 	"teamspeak-one-click-deploy/utils"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/shirou/gopsutil/v3/cpu"
 	"golang.org/x/time/rate"
 )
 
@@ -31,7 +32,13 @@ type Alert struct {
 	Source    string    `json:"source"`    // Source of the alert (e.g., "system", "business")
 }
 
+// 网络统计缓存
 var (
+	prevCPUTimes cpu.TimesStat
+	hasPrevCPU   bool
+	cpuMutex     sync.Mutex
+
+	// 网络统计相关变量
 	lastNetwork struct {
 		rxBytes uint64
 		txBytes uint64
@@ -112,7 +119,7 @@ func systemMonitorHandler(w http.ResponseWriter, r *http.Request) {
 			metrics = cachedMetrics
 		}
 	}
-	
+
 	// 如果缓存未命中，则从收集器获取
 	if metrics == nil {
 		metrics = collector.GetLastSystemMetrics()
@@ -151,7 +158,7 @@ func businessMonitorHandler(w http.ResponseWriter, r *http.Request) {
 			metrics = cachedMetrics
 		}
 	}
-	
+
 	// 如果缓存未命中，则从收集器获取
 	if metrics == nil {
 		metrics = collector.GetLastBusinessMetrics()
@@ -267,7 +274,7 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 
 	// 检查 TeamSpeak 连接
 	tsStatus := checkTeamSpeakHealth()
-	
+
 	// 检查 Redis 连接
 	redisStatus := checkRedisHealth()
 
@@ -283,7 +290,7 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 	// 如果有任何服务不可用，返回 503
 	if dbStatus["status"] != "ok" || tsStatus["status"] != "ok" || redisStatus["status"] != "ok" {
 		status["status"] = "error"
-		log.Printf("Health check failed - Database: %v, TeamSpeak: %v, Redis: %v", 
+		log.Printf("Health check failed - Database: %v, TeamSpeak: %v, Redis: %v",
 			dbStatus["message"], tsStatus["message"], redisStatus["message"])
 		utils.WriteJSON(w, http.StatusServiceUnavailable, utils.ErrServiceUnavailable, "Service Unavailable", status)
 		return
@@ -423,7 +430,7 @@ func checkRedisHealth() map[string]any {
 		"status":  "ok",
 		"message": "Redis connection is healthy",
 	}
-	
+
 	// 检查是否启用Redis
 	cfg := GetConfig()
 	if cfg == nil || !cfg.RedisConfig.Enabled {
@@ -431,18 +438,18 @@ func checkRedisHealth() map[string]any {
 		result["message"] = "Redis is disabled"
 		return result
 	}
-	
+
 	// 检查Redis客户端是否初始化
 	if redisClient == nil {
 		result["status"] = "error"
 		result["message"] = "Redis client not initialized"
 		return result
 	}
-	
+
 	// 测试Redis连接
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	
+
 	_, err := redisClient.Ping(ctx).Result()
 	if err != nil {
 		log.Printf("Redis ping failed: %v", err)
@@ -451,7 +458,7 @@ func checkRedisHealth() map[string]any {
 		result["error"] = err.Error()
 		return result
 	}
-	
+
 	return result
 }
 
@@ -465,10 +472,10 @@ func init() {
 		if err := InitRedisCache(); err != nil {
 			log.Printf("Failed to initialize Redis cache: %v", err)
 		}
-		
+
 		// 获取性能配置
 		perfConfig := GetConfig().PerformanceConfig
-		
+
 		// 使用配置文件中的参数创建收集器
 		collector = NewCollector(
 			WithMaxHistorySize(perfConfig.MaxHistorySize),
@@ -488,7 +495,7 @@ func Cleanup() {
 	if collector != nil {
 		collector.Stop()
 	}
-	
+
 	CloseRedisCache()
 }
 

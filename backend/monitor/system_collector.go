@@ -6,10 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"sync"
-
-	"slices"
-
 	"github.com/shirou/gopsutil/v3/cpu"
 	"github.com/shirou/gopsutil/v3/disk"
 	"github.com/shirou/gopsutil/v3/host"
@@ -59,18 +55,11 @@ type BusinessMetrics struct {
 	Alert        string        `json:"alert,omitempty"` // 告警信息
 }
 
-// CPU 采样缓存（用于非阻塞差分计算）
-var (
-	prevCPUTimes cpu.TimesStat
-	hasPrevCPU   bool
-	cpuMutex     sync.Mutex
-)
-
 // CollectSystemMetrics 收集系统指标
 func CollectSystemMetrics() (*SystemMetrics, error) {
 	// 获取性能配置
 	perfConfig := GetConfig().PerformanceConfig
-	
+
 	metrics := &SystemMetrics{
 		Timestamp: time.Now(),
 	}
@@ -142,7 +131,7 @@ func CollectSystemMetrics() (*SystemMetrics, error) {
 func collectCPUUsage(metrics *SystemMetrics) error {
 	// 获取性能配置
 	perfConfig := GetConfig().PerformanceConfig
-	
+
 	cpuMutex.Lock()
 	defer cpuMutex.Unlock()
 
@@ -194,12 +183,12 @@ func collectCPUUsage(metrics *SystemMetrics) error {
 func collectMemoryInfo(metrics *SystemMetrics) error {
 	// 获取性能配置
 	perfConfig := GetConfig().PerformanceConfig
-	
+
 	// 添加延迟以减少系统负载
 	if perfConfig.InnerFuncDelay > 0 {
 		time.Sleep(perfConfig.InnerFuncDelay)
 	}
-	
+
 	vm, err := mem.VirtualMemory()
 	if err != nil {
 		return err
@@ -215,18 +204,18 @@ func collectMemoryInfo(metrics *SystemMetrics) error {
 func collectSimpleDiskUsage(metrics *SystemMetrics) error {
 	// 获取性能配置
 	perfConfig := GetConfig().PerformanceConfig
-	
+
 	// 添加延迟以减少系统负载
 	if perfConfig.InnerFuncDelay > 0 {
 		time.Sleep(perfConfig.InnerFuncDelay)
 	}
-	
+
 	// 只检查根分区，避免遍历所有分区
 	u, err := disk.Usage("/")
 	if err != nil {
 		return err
 	}
-	
+
 	metrics.Disk.Total = u.Total
 	metrics.Disk.Used = u.Used
 	metrics.Disk.Free = u.Free
@@ -242,23 +231,23 @@ func collectSimpleDiskUsage(metrics *SystemMetrics) error {
 func collectSimpleNetworkStats(metrics *SystemMetrics) error {
 	// 获取性能配置
 	perfConfig := GetConfig().PerformanceConfig
-	
+
 	// 添加延迟以减少系统负载
 	if perfConfig.InnerFuncDelay > 0 {
 		time.Sleep(perfConfig.InnerFuncDelay)
 	}
-	
+
 	counters, err := gnet.IOCounters(true)
 	if err != nil {
 		return err
 	}
-	
+
 	var rx, tx uint64
 	for _, c := range counters {
 		name := strings.ToLower(c.Name)
 		// 只收集主要网络接口，跳过回环和其他虚拟接口
-		if strings.HasPrefix(name, "lo") || strings.HasPrefix(name, "docker") || 
-		   strings.HasPrefix(name, "br-") || strings.HasPrefix(name, "veth") {
+		if strings.HasPrefix(name, "lo") || strings.HasPrefix(name, "docker") ||
+			strings.HasPrefix(name, "br-") || strings.HasPrefix(name, "veth") {
 			continue
 		}
 		rx += c.BytesRecv
@@ -289,12 +278,12 @@ func collectSimpleNetworkStats(metrics *SystemMetrics) error {
 func collectUptime(metrics *SystemMetrics) error {
 	// 获取性能配置
 	perfConfig := GetConfig().PerformanceConfig
-	
+
 	// 添加延迟以减少系统负载
 	if perfConfig.InnerFuncDelay > 0 {
 		time.Sleep(perfConfig.InnerFuncDelay)
 	}
-	
+
 	uptime, err := host.Uptime()
 	if err != nil {
 		return err
@@ -307,12 +296,12 @@ func collectUptime(metrics *SystemMetrics) error {
 func collectLoadAvg(metrics *SystemMetrics) error {
 	// 获取性能配置
 	perfConfig := GetConfig().PerformanceConfig
-	
+
 	// 添加延迟以减少系统负载
 	if perfConfig.InnerFuncDelay > 0 {
 		time.Sleep(perfConfig.InnerFuncDelay)
 	}
-	
+
 	avg, err := load.Avg()
 	if err != nil {
 		// 某些平台不支持，忽略错误
