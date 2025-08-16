@@ -104,6 +104,9 @@ type Collector struct {
 		business int
 	}
 	sampleMutex sync.Mutex
+	
+	// 延迟控制
+	collectionDelay time.Duration
 }
 
 // CollectorOption 收集器配置选项
@@ -137,8 +140,18 @@ func WithBusinessSampleRate(rate int) CollectorOption {
 	}
 }
 
+// WithCollectionDelay 设置收集后延迟时间
+func WithCollectionDelay(delay time.Duration) CollectorOption {
+	return func(c *Collector) {
+		c.collectionDelay = delay
+	}
+}
+
 // NewCollector 创建新的指标收集器
 func NewCollector(opts ...CollectorOption) *Collector {
+	// 获取配置
+	config := GetConfig()
+	
 	ctx, cancel := context.WithCancel(context.Background())
 	collector := &Collector{
 		ctx:                    ctx,
@@ -148,11 +161,12 @@ func NewCollector(opts ...CollectorOption) *Collector {
 		alertChan:              make(chan *Alert, 1000),
 		systemMetricsHistory:   make([]*SystemMetrics, 0),
 		businessMetricsHistory: make([]*BusinessMetrics, 0),
-		maxHistorySize:         50, // 减少默认历史记录大小
+		maxHistorySize:         config.PerformanceConfig.MaxHistorySize,
 		startTime:              time.Now(),
-		minCollectionInterval:  15 * time.Second, // 增加最小收集间隔到15秒
-		systemSampleRate:       2, // 系统指标每2次只收集1次
-		businessSampleRate:     3, // 业务指标每3次只收集1次
+		minCollectionInterval:  config.PerformanceConfig.MinCollectionInterval,
+		systemSampleRate:       config.PerformanceConfig.SystemSampleRate,
+		businessSampleRate:     config.PerformanceConfig.BusinessSampleRate,
+		collectionDelay:        config.PerformanceConfig.CollectionDelay,
 	}
 
 	// 应用选项
@@ -354,7 +368,9 @@ func (c *Collector) collectSystemMetrics() {
 			}
 			
 			// 在每次收集后增加延迟，减轻系统压力
-			time.Sleep(500 * time.Millisecond)
+			if c.collectionDelay > 0 {
+				time.Sleep(c.collectionDelay)
+			}
 		}
 	}
 }
@@ -500,7 +516,9 @@ func (c *Collector) collectBusinessMetrics() {
 			}
 			
 			// 在每次收集后增加延迟，减轻系统压力
-			time.Sleep(500 * time.Millisecond)
+			if c.collectionDelay > 0 {
+				time.Sleep(c.collectionDelay)
+			}
 		}
 	}
 }

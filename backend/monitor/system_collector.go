@@ -68,68 +68,68 @@ var (
 
 // CollectSystemMetrics 收集系统指标
 func CollectSystemMetrics() (*SystemMetrics, error) {
+	// 获取性能配置
+	perfConfig := GetConfig().PerformanceConfig
+	
 	metrics := &SystemMetrics{
 		Timestamp: time.Now(),
 	}
 
-	// 并行收集各项指标以提高效率
-	var wg sync.WaitGroup
-	var cpuErr, memErr, diskErr, netErr, uptimeErr, loadErr error
+	// 收集 CPU 使用率
+	if err := collectCPUUsage(metrics); err != nil {
+		return nil, fmt.Errorf("failed to collect CPU usage: %w", err)
+	}
 
-	wg.Add(6)
-	go func() {
-		defer wg.Done()
-		cpuErr = collectCPUUsage(metrics)
-	}()
-	
-	go func() {
-		defer wg.Done()
-		memErr = collectMemoryInfo(metrics)
-	}()
-	
-	go func() {
-		defer wg.Done()
-		diskErr = collectSimpleDiskUsage(metrics)
-	}()
-	
-	go func() {
-		defer wg.Done()
-		netErr = collectSimpleNetworkStats(metrics)
-	}()
-	
-	go func() {
-		defer wg.Done()
-		uptimeErr = collectUptime(metrics)
-	}()
-	
-	go func() {
-		defer wg.Done()
-		// 降低频率采集负载信息
-		if time.Now().Unix()%5 == 0 {
-			loadErr = collectLoadAvg(metrics)
+	// 短暂延迟，避免资源竞争
+	if perfConfig.InterFuncDelay > 0 {
+		time.Sleep(perfConfig.InterFuncDelay)
+	}
+
+	// 收集内存使用情况
+	if err := collectMemoryInfo(metrics); err != nil {
+		return nil, fmt.Errorf("failed to collect memory info: %w", err)
+	}
+
+	// 短暂延迟，避免资源竞争
+	if perfConfig.InterFuncDelay > 0 {
+		time.Sleep(perfConfig.InterFuncDelay)
+	}
+
+	// 收集磁盘使用情况 (简化处理，只检查根分区)
+	if err := collectSimpleDiskUsage(metrics); err != nil {
+		return nil, fmt.Errorf("failed to collect disk usage: %w", err)
+	}
+
+	// 短暂延迟，避免资源竞争
+	if perfConfig.InterFuncDelay > 0 {
+		time.Sleep(perfConfig.InterFuncDelay)
+	}
+
+	// 收集网络统计信息 (只收集主要接口)
+	if err := collectSimpleNetworkStats(metrics); err != nil {
+		return nil, fmt.Errorf("failed to collect network stats: %w", err)
+	}
+
+	// 短暂延迟，避免资源竞争
+	if perfConfig.InterFuncDelay > 0 {
+		time.Sleep(perfConfig.InterFuncDelay)
+	}
+
+	// 收集系统运行时间
+	if err := collectUptime(metrics); err != nil {
+		return nil, fmt.Errorf("failed to collect uptime: %w", err)
+	}
+
+	// 短暂延迟，避免资源竞争
+	if perfConfig.InterFuncDelay > 0 {
+		time.Sleep(perfConfig.InterFuncDelay)
+	}
+
+	// 收集系统负载 (降低频率)
+	if time.Now().Unix()%5 == 0 { // 每5次只收集1次
+		if err := collectLoadAvg(metrics); err != nil {
+			return nil, fmt.Errorf("failed to collect load average: %w", err)
 		}
-	}()
-
-	wg.Wait()
-
-	// 处理错误
-	if cpuErr != nil {
-		return nil, fmt.Errorf("failed to collect CPU usage: %w", cpuErr)
-	}
-	if memErr != nil {
-		return nil, fmt.Errorf("failed to collect memory info: %w", memErr)
-	}
-	if diskErr != nil {
-		return nil, fmt.Errorf("failed to collect disk usage: %w", diskErr)
-	}
-	if netErr != nil {
-		return nil, fmt.Errorf("failed to collect network stats: %w", netErr)
-	}
-	if uptimeErr != nil {
-		return nil, fmt.Errorf("failed to collect uptime: %w", uptimeErr)
-	}
-	if loadErr != nil {
-		return nil, fmt.Errorf("failed to collect load average: %w", loadErr)
 	}
 
 	// 检查告警
@@ -140,11 +140,16 @@ func CollectSystemMetrics() (*SystemMetrics, error) {
 
 // collectCPUUsage 收集 CPU 使用率（跨平台，非阻塞差分法）
 func collectCPUUsage(metrics *SystemMetrics) error {
+	// 获取性能配置
+	perfConfig := GetConfig().PerformanceConfig
+	
 	cpuMutex.Lock()
 	defer cpuMutex.Unlock()
 
 	// 添加延迟以减少系统负载
-	time.Sleep(20 * time.Millisecond)
+	if perfConfig.InnerFuncDelay > 0 {
+		time.Sleep(perfConfig.InnerFuncDelay)
+	}
 
 	times, err := cpu.Times(false)
 	if err != nil || len(times) == 0 {
@@ -187,8 +192,13 @@ func collectCPUUsage(metrics *SystemMetrics) error {
 
 // collectMemoryInfo 收集内存信息（跨平台）
 func collectMemoryInfo(metrics *SystemMetrics) error {
+	// 获取性能配置
+	perfConfig := GetConfig().PerformanceConfig
+	
 	// 添加延迟以减少系统负载
-	time.Sleep(20 * time.Millisecond)
+	if perfConfig.InnerFuncDelay > 0 {
+		time.Sleep(perfConfig.InnerFuncDelay)
+	}
 	
 	vm, err := mem.VirtualMemory()
 	if err != nil {
@@ -203,8 +213,13 @@ func collectMemoryInfo(metrics *SystemMetrics) error {
 
 // collectSimpleDiskUsage 简化版磁盘使用情况收集（只检查根分区）
 func collectSimpleDiskUsage(metrics *SystemMetrics) error {
+	// 获取性能配置
+	perfConfig := GetConfig().PerformanceConfig
+	
 	// 添加延迟以减少系统负载
-	time.Sleep(20 * time.Millisecond)
+	if perfConfig.InnerFuncDelay > 0 {
+		time.Sleep(perfConfig.InnerFuncDelay)
+	}
 	
 	// 只检查根分区，避免遍历所有分区
 	u, err := disk.Usage("/")
@@ -245,8 +260,13 @@ func isUsableFS(fstype string, opts []string, mount string) bool {
 
 // collectSimpleNetworkStats 简化版网络统计信息收集（只收集主要接口）
 func collectSimpleNetworkStats(metrics *SystemMetrics) error {
+	// 获取性能配置
+	perfConfig := GetConfig().PerformanceConfig
+	
 	// 添加延迟以减少系统负载
-	time.Sleep(20 * time.Millisecond)
+	if perfConfig.InnerFuncDelay > 0 {
+		time.Sleep(perfConfig.InnerFuncDelay)
+	}
 	
 	counters, err := gnet.IOCounters(true)
 	if err != nil {
@@ -287,8 +307,13 @@ func collectSimpleNetworkStats(metrics *SystemMetrics) error {
 
 // collectUptime 收集系统运行时间（跨平台）
 func collectUptime(metrics *SystemMetrics) error {
+	// 获取性能配置
+	perfConfig := GetConfig().PerformanceConfig
+	
 	// 添加延迟以减少系统负载
-	time.Sleep(20 * time.Millisecond)
+	if perfConfig.InnerFuncDelay > 0 {
+		time.Sleep(perfConfig.InnerFuncDelay)
+	}
 	
 	uptime, err := host.Uptime()
 	if err != nil {
@@ -300,8 +325,13 @@ func collectUptime(metrics *SystemMetrics) error {
 
 // collectLoadAvg 收集系统负载（跨平台，若不支持则回退为 0）
 func collectLoadAvg(metrics *SystemMetrics) error {
+	// 获取性能配置
+	perfConfig := GetConfig().PerformanceConfig
+	
 	// 添加延迟以减少系统负载
-	time.Sleep(20 * time.Millisecond)
+	if perfConfig.InnerFuncDelay > 0 {
+		time.Sleep(perfConfig.InnerFuncDelay)
+	}
 	
 	avg, err := load.Avg()
 	if err != nil {

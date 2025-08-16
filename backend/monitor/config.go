@@ -13,9 +13,6 @@ type Config struct {
 	// 收集间隔
 	CollectInterval time.Duration `yaml:"collect_interval"`
 
-	// 最小收集间隔
-	MinCollectionInterval time.Duration `yaml:"min_collection_interval"`
-
 	// 告警相关配置
 	AlertConfig AlertConfig `yaml:"alert_config"`
 
@@ -24,6 +21,33 @@ type Config struct {
 
 	// 系统监控配置
 	SystemConfig SystemConfig `yaml:"system_config"`
+	
+	// 性能优化配置
+	PerformanceConfig PerformanceConfig `yaml:"performance_config"`
+}
+
+// PerformanceConfig 性能优化配置
+type PerformanceConfig struct {
+	// 最小收集间隔
+	MinCollectionInterval time.Duration `yaml:"min_collection_interval"`
+	
+	// 系统指标采样率 (1/N 的频率收集)
+	SystemSampleRate int `yaml:"system_sample_rate"`
+	
+	// 业务指标采样率 (1/N 的频率收集)
+	BusinessSampleRate int `yaml:"business_sample_rate"`
+	
+	// 历史记录最大数量
+	MaxHistorySize int `yaml:"max_history_size"`
+	
+	// 收集后延迟时间
+	CollectionDelay time.Duration `yaml:"collection_delay"`
+	
+	// 函数间延迟时间
+	InterFuncDelay time.Duration `yaml:"inter_func_delay"`
+	
+	// 函数内延迟时间
+	InnerFuncDelay time.Duration `yaml:"inner_func_delay"`
 }
 
 // AlertConfig 告警配置
@@ -77,8 +101,7 @@ func GetConfig() *Config {
 	configOnce.Do(func() {
 		// 默认配置
 		config = &Config{
-			CollectInterval:       60 * time.Second,
-			MinCollectionInterval: 30 * time.Second,
+			CollectInterval: 60 * time.Second,
 			AlertConfig: AlertConfig{
 				Enabled:       true,
 				NotifyMethods: []string{"console"},
@@ -107,6 +130,15 @@ func GetConfig() *Config {
 			SystemConfig: SystemConfig{
 				MountPoints:       []string{"/"},
 				NetworkInterfaces: []string{"eth0"},
+			},
+			PerformanceConfig: PerformanceConfig{
+				MinCollectionInterval: 30 * time.Second,
+				SystemSampleRate:      3,
+				BusinessSampleRate:    4,
+				MaxHistorySize:        50,
+				CollectionDelay:       500 * time.Millisecond,
+				InterFuncDelay:        50 * time.Millisecond,
+				InnerFuncDelay:        20 * time.Millisecond,
 			},
 		}
 	})
@@ -139,6 +171,15 @@ func LoadConfigFromFile(path string) error {
 				MountPoints       []string `yaml:"mount_points"`
 				NetworkInterfaces []string `yaml:"network_interfaces"`
 			} `yaml:"system"`
+			Performance struct {
+				MinCollectionInterval string `yaml:"min_collection_interval"`
+				SystemSampleRate      int    `yaml:"system_sample_rate"`
+				BusinessSampleRate    int    `yaml:"business_sample_rate"`
+				MaxHistorySize        int    `yaml:"max_history_size"`
+				CollectionDelay       string `yaml:"collection_delay"`
+				InterFuncDelay        string `yaml:"inter_func_delay"`
+				InnerFuncDelay        string `yaml:"inner_func_delay"`
+			} `yaml:"performance"`
 		} `yaml:"monitoring"`
 		TeamSpeak struct {
 			Host                    string `yaml:"host"`
@@ -222,6 +263,43 @@ func LoadConfigFromFile(path string) error {
 	}
 	if len(fc.Monitoring.System.NetworkInterfaces) > 0 {
 		cfg.SystemConfig.NetworkInterfaces = fc.Monitoring.System.NetworkInterfaces
+	}
+	
+	// 性能优化配置
+	if fc.Monitoring.Performance.MinCollectionInterval != "" {
+		if d, err := time.ParseDuration(fc.Monitoring.Performance.MinCollectionInterval); err == nil {
+			cfg.PerformanceConfig.MinCollectionInterval = d
+		}
+	}
+	
+	if fc.Monitoring.Performance.SystemSampleRate > 0 {
+		cfg.PerformanceConfig.SystemSampleRate = fc.Monitoring.Performance.SystemSampleRate
+	}
+	
+	if fc.Monitoring.Performance.BusinessSampleRate > 0 {
+		cfg.PerformanceConfig.BusinessSampleRate = fc.Monitoring.Performance.BusinessSampleRate
+	}
+	
+	if fc.Monitoring.Performance.MaxHistorySize > 0 {
+		cfg.PerformanceConfig.MaxHistorySize = fc.Monitoring.Performance.MaxHistorySize
+	}
+	
+	if fc.Monitoring.Performance.CollectionDelay != "" {
+		if d, err := time.ParseDuration(fc.Monitoring.Performance.CollectionDelay); err == nil {
+			cfg.PerformanceConfig.CollectionDelay = d
+		}
+	}
+	
+	if fc.Monitoring.Performance.InterFuncDelay != "" {
+		if d, err := time.ParseDuration(fc.Monitoring.Performance.InterFuncDelay); err == nil {
+			cfg.PerformanceConfig.InterFuncDelay = d
+		}
+	}
+	
+	if fc.Monitoring.Performance.InnerFuncDelay != "" {
+		if d, err := time.ParseDuration(fc.Monitoring.Performance.InnerFuncDelay); err == nil {
+			cfg.PerformanceConfig.InnerFuncDelay = d
+		}
 	}
 
 	return nil

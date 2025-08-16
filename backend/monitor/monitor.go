@@ -390,12 +390,16 @@ var rateLimiter = rate.NewLimiter(rate.Every(2*time.Second), 5) // 降低请求�
 // 在 init 函数中启动收集器
 func init() {
 	once.Do(func() {
-		// 使用更大的历史记录大小和最小收集间隔
+		// 获取性能配置
+		perfConfig := GetConfig().PerformanceConfig
+		
+		// 使用配置文件中的参数创建收集器
 		collector = NewCollector(
-			WithMaxHistorySize(50),              // 减少历史记录大小
-			WithMinCollectionInterval(30*time.Second), // 增加最小收集间隔到30秒
-			WithSystemSampleRate(3),             // 系统指标采样率降低到1/3
-			WithBusinessSampleRate(4),           // 业务指标采样率降低到1/4
+			WithMaxHistorySize(perfConfig.MaxHistorySize),
+			WithMinCollectionInterval(perfConfig.MinCollectionInterval),
+			WithSystemSampleRate(perfConfig.SystemSampleRate),
+			WithBusinessSampleRate(perfConfig.BusinessSampleRate),
+			WithCollectionDelay(perfConfig.CollectionDelay),
 		)
 		if err := collector.Start(); err != nil {
 			log.Printf("Failed to start metrics collector: %v", err)

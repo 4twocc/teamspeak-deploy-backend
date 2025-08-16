@@ -48,6 +48,17 @@ monitoring:
       memory: 85
       disk: 80
       voice_quality: 0.7
+  system:
+    mount_points: ["/"]
+    network_interfaces: ["eth0"]
+  performance:
+    min_collection_interval: 30s
+    system_sample_rate: 3
+    business_sample_rate: 4
+    max_history_size: 50
+    collection_delay: 500ms
+    inter_func_delay: 50ms
+    inner_func_delay: 20ms
 
 teamspeak:
   host: 127.0.0.1
