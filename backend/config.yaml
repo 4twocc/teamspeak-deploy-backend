@@ -60,8 +60,8 @@ monitoring:
     inter_func_delay: 300s
     inner_func_delay: 1s
   redis:
-    enabled: false
-    addr: "localhost:6379"
+    enabled: true
+    addr: "redis:6379"
     password: ""
     db: 0
 

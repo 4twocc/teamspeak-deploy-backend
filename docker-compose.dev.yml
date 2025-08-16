@@ -1,56 +1,51 @@
+version: '3.8'
+
 services:
+  # 后端开发服务
   backend:
-    build: 
+    build:
       context: ./backend
       dockerfile: Dockerfile
       target: development
     ports:
       - "8080:8080"
-    volumes:
-      # 挂载源代码以支持热重载（开发环境）
-      - ./backend:/app
-      # 挂载配置文件
-      - ./backend/config.yaml:/app/config.yaml
-      # 挂载环境变量文件
-      - ./backend/.env.development:/app/.env
-      # 挂载数据目录
-      - ./backend/data:/app/data
-    restart: unless-stopped
     environment:
       - SERVER_ENV=development
       - TEAMSPEAK_PASSWORD=${TEAMSPEAK_PASSWORD}
       - JWT_SECRET=${JWT_SECRET}
-      - TEAMSPEAK_SERVER_QUERY_APIKEY=${TEAMSPEAK_SERVER_QUERY_APIKEY}
-      - TEAMSPEAK_SERVER_ADMIN_TOEKN=${TEAMSPEAK_SERVER_ADMIN_TOEKN}
-      - TEAMSPEAK_SERVER_ADMIN_USERNAME=${TEAMSPEAK_SERVER_ADMIN_USERNAME}
-    # 开发环境使用热重载
-    command: >
-      sh -c "
-      cd /app &&
-      go mod download &&
-      CompileDaemon -build='go build -o teamspeak-backend .' -command='./teamspeak-backend'
-      "
-
-  # frontend:
-  #   build: ./frontend
-  #   ports:
-  #     - "3000:80"
-  #   depends_on:
-  #     - backend
-  #   restart: unless-stopped
-  #   volumes:
-  #     - ./frontend/src:/app/src
-
-  node-exporter:
-    image: prom/node-exporter:latest
-    ports:
-      - "9100:9100"
     volumes:
-      - /proc:/host/proc:ro
-      - /sys:/host/sys:ro
-      - /:/rootfs:ro
-    command:
-      - '--path.procfs=/host/proc'
-      - '--path.sysfs=/host/sys'
-      - '--collector.filesystem.ignored-mount-points=^/(sys|proc|dev|host|etc)($$|/)'
+      - ./backend:/app
+      - /app/go.mod
+      - /app/go.sum
+    depends_on:
+      - redis
     restart: unless-stopped
+
+  # 前端开发服务
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+      args:
+        - NODE_VERSION=22
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    restart: unless-stopped
+
+  # Redis服务
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    restart: unless-stopped
+
+volumes:
+  redis_data:

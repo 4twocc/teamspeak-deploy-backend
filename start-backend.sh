@@ -31,18 +31,18 @@ print_debug() {
 
 # 显示使用说明
 show_usage() {
-    echo "使用方法:"
-    echo "  ./start-backend.sh [选项]"
-    echo ""
-    echo "选项:"
-    echo "  -h, --help     显示此帮助信息"
-    echo "  -d, --daemon   后台运行服务"
-    echo "  -l, --log      指定日志文件 (默认: backend.log)"
-    echo ""
-    echo "示例:"
-    echo "  ./start-backend.sh              # 前台运行"
-    echo "  ./start-backend.sh -d           # 后台运行"
-    echo "  ./start-backend.sh -d -l app.log # 后台运行并指定日志文件"
+    print_info "使用方法:"
+    print_info "  ./start-backend.sh [选项]"
+    print_info ""
+    print_info "选项:"
+    print_info "  -h, --help     显示此帮助信息"
+    print_info "  -d, --daemon   后台运行服务"
+    print_info "  -l, --log      指定日志文件 (默认: backend.log)"
+    print_info ""
+    print_info "示例:"
+    print_info "  ./start-backend.sh              # 前台运行"
+    print_info "  ./start-backend.sh -d           # 后台运行"
+    print_info "  ./start-backend.sh -d -l app.log # 后台运行并指定日志文件"
 }
 
 # 默认参数

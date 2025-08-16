@@ -17,6 +17,8 @@ services:
       - TEAMSPEAK_SERVER_QUERY_APIKEY=${TEAMSPEAK_SERVER_QUERY_APIKEY}
       - TEAMSPEAK_SERVER_ADMIN_TOEKN=${TEAMSPEAK_SERVER_ADMIN_TOEKN}
       - TEAMSPEAK_SERVER_ADMIN_USERNAME=${TEAMSPEAK_SERVER_ADMIN_USERNAME}
+    depends_on:
+      - redis
 
   # frontend:
   #   build: ./frontend
@@ -25,6 +27,14 @@ services:
   #   depends_on:
   #     - backend
   #   restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
 
   node-exporter:
     image: prom/node-exporter:latest

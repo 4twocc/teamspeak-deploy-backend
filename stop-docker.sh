@@ -117,4 +117,10 @@ fi
 print_info "停止服务..."
 $DOCKER_COMPOSE_CMD -f $COMPOSE_FILE down $DOWN_OPTION
 
+if [ "$REMOVE_VOLUMES" = true ]; then
+    print_warn "已停止服务并删除所有数据卷，包括Redis数据"
+else
+    print_info "已停止服务，Redis数据已保留"
+fi
+
 print_info "服务已停止"

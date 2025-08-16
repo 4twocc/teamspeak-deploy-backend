@@ -350,6 +350,7 @@ $DOCKER_COMPOSE_CMD -f $COMPOSE_FILE ps
 
 print_success "服务启动完成！"
 print_success "后端服务地址: http://localhost:8080"
+print_success "Redis服务地址: redis://localhost:6379"
 # if [ "$DEV_MODE" = true ]; then
 #     print_info "前端开发服务器地址: http://localhost:3000"
 # else

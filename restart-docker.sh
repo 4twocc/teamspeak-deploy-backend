@@ -9,11 +9,16 @@ set -e  # 遇到错误时退出
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+PURPLE='\033[0;35m'
 NC='\033[0m' # No Color
 
 # 打印带颜色的信息
+print_success() {
+    echo -e "${GREEN}[SUCCESS]${NC} $1"
+}
 print_info() {
-    echo -e "${GREEN}[INFO]${NC} $1"
+    echo -e "${BLUE}[INFO]${NC} $1"
 }
 
 print_warn() {
@@ -24,20 +29,24 @@ print_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
+print_debug() {
+    echo -e "${PURPLE}[DEBUG]${NC} $1"
+}
+
 # 显示使用说明
 show_usage() {
-    echo "使用方法:"
-    echo "  ./restart-docker.sh [选项]"
-    echo ""
-    echo "选项:"
-    gecho "  -h, --help     显示此帮助信息"
-    echo "  -d, --dev      重启开发模式的服务"
-    echo "  -b, --build    重启时重新构建镜像"
-    echo ""
-    echo "示例:"
-    echo "  ./restart-docker.sh          # 重启生产模式服务"
-    echo "  ./restart-docker.sh -d       # 重启开发模式服务"
-    echo "  ./restart-docker.sh -b       # 重启并重新构建镜像"
+    print_info "使用方法:"
+    print_info "  ./restart-docker.sh [选项]"
+    print_info ""
+    print_info "选项:"
+    print_info "  -h, --help     显示此帮助信息"
+    print_info "  -d, --dev      重启开发模式的服务"
+    print_info "  -b, --build    重启时重新构建镜像"
+    print_info ""
+    print_info "示例:"
+    print_info "  ./restart-docker.sh          # 重启生产模式服务"
+    print_info "  ./restart-docker.sh -d       # 重启开发模式服务"
+    print_info "  ./restart-docker.sh -b       # 重启并重新构建镜像"
 }
 
 # 默认参数
@@ -69,7 +78,7 @@ done
 
 # 检查是否在正确的目录
 if [ ! -f "docker-compose.yml" ]; then
-    print_error "请在项目根目录运行此脚本"
+    print_info "请在项目根目录运行此脚本"
     exit 1
 fi
 
@@ -127,9 +136,10 @@ $DOCKER_COMPOSE_CMD -f $COMPOSE_FILE ps
 
 print_info "服务重启完成！"
 print_info "后端服务地址: http://localhost:8080"
-if [ "$DEV_MODE" = true ]; then
-    print_info "前端开发服务器地址: http://localhost:3000"
-else
-    print_info "前端服务地址: http://localhost"
-fi
+print_info "Redis服务地址: redis://localhost:6379"
+# if [ "$DEV_MODE" = true ]; then
+#     print_info "前端开发服务器地址: http://localhost:3000"
+# else
+#     print_info "前端服务地址: http://localhost"
+# fi
 print_info "监控指标地址: http://localhost:9100"

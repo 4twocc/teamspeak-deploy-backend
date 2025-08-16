@@ -26,7 +26,7 @@ print_error() {
 
 # 检查是否在正确的目录
 if [ ! -f "backend/main.go" ]; then
-    print_error "请在项目根目录运行此脚本"
+    print_info "请在项目根目录运行此脚本"
     exit 1
 fi
 
