@@ -26,6 +26,7 @@ services:
     # 开发环境使用热重载
     command: >
       sh -c "
+      cd /app &&
       go mod download &&
       CompileDaemon -build='go build -o teamspeak-backend .' -command='./teamspeak-backend'
       "
