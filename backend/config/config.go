@@ -67,8 +67,9 @@ type DatabaseConfig struct {
 
 // MonitoringConfig 监控配置
 type MonitoringConfig struct {
-	CollectInterval time.Duration `mapstructure:"collect_interval"`
-	Alert           AlertConfig   `mapstructure:"alert"`
+	CollectInterval       time.Duration `mapstructure:"collect_interval"`
+	MinCollectionInterval int           `mapstructure:"min_collection_interval"`
+	Alert                 AlertConfig   `mapstructure:"alert"`
 }
 
 // AlertConfig 告警配置

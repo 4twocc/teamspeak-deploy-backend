@@ -89,6 +89,12 @@ type Collector struct {
 	// 复用的 TeamSpeak 客户端
 	tsClient   *TeamSpeakClient
 	tsClientMu sync.Mutex
+
+	// 缓存控制
+	lastSystemCollection   time.Time
+	lastBusinessCollection time.Time
+	collectionMutex        sync.Mutex
+	minCollectionInterval  time.Duration
 }
 
 // CollectorOption 收集器配置选项
@@ -98,6 +104,13 @@ type CollectorOption func(*Collector)
 func WithMaxHistorySize(size int) CollectorOption {
 	return func(c *Collector) {
 		c.maxHistorySize = size
+	}
+}
+
+// WithMinCollectionInterval 设置最小收集间隔
+func WithMinCollectionInterval(interval time.Duration) CollectorOption {
+	return func(c *Collector) {
+		c.minCollectionInterval = interval
 	}
 }
 
@@ -114,6 +127,7 @@ func NewCollector(opts ...CollectorOption) *Collector {
 		businessMetricsHistory: make([]*BusinessMetrics, 0),
 		maxHistorySize:         100, // 默认保存100条历史记录
 		startTime:              time.Now(),
+		minCollectionInterval:  config.MonitoringConfig.MinCollectionInterval * time.Second, // 默认最小收集间隔30秒
 	}
 
 	// 应用选项
@@ -198,6 +212,27 @@ func withRetry(operation func() error, maxRetries int, initialBackoff time.Durat
 	return fmt.Errorf("after %d attempts: %w", maxRetries, err)
 }
 
+// shouldCollect 判断是否应该执行收集操作（实现缓存和最小间隔控制）
+func (c *Collector) shouldCollect(lastCollection time.Time) bool {
+	c.collectionMutex.Lock()
+	defer c.collectionMutex.Unlock()
+
+	// 检查距离上次收集是否已经超过最小间隔
+	return time.Since(lastCollection) >= c.minCollectionInterval
+}
+
+// updateLastCollection 更新上次收集时间
+func (c *Collector) updateLastCollection(isSystem bool) {
+	c.collectionMutex.Lock()
+	defer c.collectionMutex.Unlock()
+
+	if isSystem {
+		c.lastSystemCollection = time.Now()
+	} else {
+		c.lastBusinessCollection = time.Now()
+	}
+}
+
 // 收集系统指标
 func (c *Collector) collectSystemMetrics() {
 	defer func() {
@@ -218,6 +253,12 @@ func (c *Collector) collectSystemMetrics() {
 		case <-c.ctx.Done():
 			return
 		case <-ticker.C:
+			// 检查是否应该收集（避免过于频繁的IO操作）
+			if !c.shouldCollect(c.lastSystemCollection) {
+				log.Printf("Skipping system metrics collection due to minimum interval constraint")
+				continue
+			}
+
 			// Use retry for collecting metrics
 			var metrics *SystemMetrics
 			err := withRetry(func() error {
@@ -234,6 +275,9 @@ func (c *Collector) collectSystemMetrics() {
 				}
 				continue
 			}
+
+			// 更新上次收集时间
+			c.updateLastCollection(true)
 
 			// Update latest metrics
 			c.metricsMutex.Lock()
@@ -285,6 +329,12 @@ func (c *Collector) collectBusinessMetrics() {
 		case <-c.ctx.Done():
 			return
 		case <-ticker.C:
+			// 检查是否应该收集（避免过于频繁的IO操作）
+			if !c.shouldCollect(c.lastBusinessCollection) {
+				log.Printf("Skipping business metrics collection due to minimum interval constraint")
+				continue
+			}
+
 			var metrics *BusinessMetrics
 			var err error
 
@@ -358,6 +408,9 @@ func (c *Collector) collectBusinessMetrics() {
 				lastErr = err
 				continue
 			}
+
+			// 更新上次收集时间
+			c.updateLastCollection(false)
 
 			// Update latest metrics
 			c.metricsMutex.Lock()

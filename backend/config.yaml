@@ -39,7 +39,8 @@ database:
   auto_migrate: true
 
 monitoring:
-  collect_interval: 60s
+  collect_interval: 180s
+  min_collection_interval: 30
   alert:
     enabled: true
     notify_methods: ["console", "email"]

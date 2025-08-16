@@ -390,7 +390,11 @@ var rateLimiter = rate.NewLimiter(rate.Every(time.Second), 10) // 每秒最多10
 // 在 init 函数中启动收集器
 func init() {
 	once.Do(func() {
-		collector = NewCollector(WithMaxHistorySize(1000)) // 增加默认历史记录大小
+		// 使用更大的历史记录大小和最小收集间隔
+		collector = NewCollector(
+			WithMaxHistorySize(1000),
+			WithMinCollectionInterval(10*time.Second),
+		)
 		if err := collector.Start(); err != nil {
 			log.Printf("Failed to start metrics collector: %v", err)
 		}
