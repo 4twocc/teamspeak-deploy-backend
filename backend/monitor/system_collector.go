@@ -238,26 +238,6 @@ func collectSimpleDiskUsage(metrics *SystemMetrics) error {
 	return nil
 }
 
-// 判断分区是否为可聚合的常规文件系统
-func isUsableFS(fstype string, opts []string, mount string) bool {
-	fs := strings.ToLower(fstype)
-	// 常见需排除的虚拟/内核伪文件系统
-	excludes := []string{"tmpfs", "devtmpfs", "devfs", "proc", "sysfs", "cgroup", "cgroup2", "overlay", "aufs", "squashfs", "ramfs", "zfs", "autofs", "debugfs", "tracefs", "configfs", "selinuxfs", "fusectl"}
-	if slices.Contains(excludes, fs) {
-		return false
-	}
-	// Windows: 仅聚合固定磁盘
-	optstr := strings.ToLower(strings.Join(opts, ","))
-	if strings.Contains(optstr, "cdrom") || strings.Contains(optstr, "removable") {
-		return false
-	}
-	// 排除只读内核挂载或空挂载点
-	if mount == "" || mount == "/proc" || mount == "/sys" || mount == "/dev" {
-		return false
-	}
-	return true
-}
-
 // collectSimpleNetworkStats 简化版网络统计信息收集（只收集主要接口）
 func collectSimpleNetworkStats(metrics *SystemMetrics) error {
 	// 获取性能配置

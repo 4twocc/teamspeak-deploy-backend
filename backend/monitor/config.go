@@ -24,6 +24,17 @@ type Config struct {
 	
 	// 性能优化配置
 	PerformanceConfig PerformanceConfig `yaml:"performance_config"`
+	
+	// Redis配置
+	RedisConfig RedisConfig `yaml:"redis"`
+}
+
+// RedisConfig Redis配置
+type RedisConfig struct {
+	Enabled  bool   `yaml:"enabled"`
+	Addr     string `yaml:"addr"`
+	Password string `yaml:"password"`
+	DB       int    `yaml:"db"`
 }
 
 // PerformanceConfig 性能优化配置
@@ -140,6 +151,12 @@ func GetConfig() *Config {
 				InterFuncDelay:        50 * time.Millisecond,
 				InnerFuncDelay:        20 * time.Millisecond,
 			},
+			RedisConfig: RedisConfig{
+				Enabled:  false,
+				Addr:     "localhost:6379",
+				Password: "",
+				DB:       0,
+			},
 		}
 	})
 	return config
@@ -180,6 +197,12 @@ func LoadConfigFromFile(path string) error {
 				InterFuncDelay        string `yaml:"inter_func_delay"`
 				InnerFuncDelay        string `yaml:"inner_func_delay"`
 			} `yaml:"performance"`
+			Redis struct {
+				Enabled  bool   `yaml:"enabled"`
+				Addr     string `yaml:"addr"`
+				Password string `yaml:"password"`
+				DB       int    `yaml:"db"`
+			} `yaml:"redis"`
 		} `yaml:"monitoring"`
 		TeamSpeak struct {
 			Host                    string `yaml:"host"`
@@ -301,6 +324,14 @@ func LoadConfigFromFile(path string) error {
 			cfg.PerformanceConfig.InnerFuncDelay = d
 		}
 	}
+	
+	// Redis配置
+	cfg.RedisConfig.Enabled = fc.Monitoring.Redis.Enabled
+	if fc.Monitoring.Redis.Addr != "" {
+		cfg.RedisConfig.Addr = fc.Monitoring.Redis.Addr
+	}
+	cfg.RedisConfig.Password = fc.Monitoring.Redis.Password
+	cfg.RedisConfig.DB = fc.Monitoring.Redis.DB
 
 	return nil
 }

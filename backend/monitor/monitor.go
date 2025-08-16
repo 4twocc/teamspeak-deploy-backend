@@ -102,8 +102,22 @@ func systemMonitorHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 获取系统指标
-	metrics := collector.GetLastSystemMetrics()
+	// 尝试从缓存获取系统指标
+	var metrics *SystemMetrics
+	if GetConfig().RedisConfig.Enabled {
+		cachedMetrics, err := getCachedSystemMetrics()
+		if err != nil {
+			log.Printf("Failed to get cached system metrics: %v", err)
+		} else if cachedMetrics != nil {
+			metrics = cachedMetrics
+		}
+	}
+	
+	// 如果缓存未命中，则从收集器获取
+	if metrics == nil {
+		metrics = collector.GetLastSystemMetrics()
+	}
+
 	if metrics == nil {
 		utils.Fail(w, http.StatusServiceUnavailable, utils.ErrNoSystemMetrics, utils.ErrorMessage(utils.ErrNoSystemMetrics))
 		return
@@ -127,8 +141,22 @@ func businessMonitorHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 获取业务指标
-	metrics := collector.GetLastBusinessMetrics()
+	// 尝试从缓存获取业务指标
+	var metrics *BusinessMetrics
+	if GetConfig().RedisConfig.Enabled {
+		cachedMetrics, err := getCachedBusinessMetrics()
+		if err != nil {
+			log.Printf("Failed to get cached business metrics: %v", err)
+		} else if cachedMetrics != nil {
+			metrics = cachedMetrics
+		}
+	}
+	
+	// 如果缓存未命中，则从收集器获取
+	if metrics == nil {
+		metrics = collector.GetLastBusinessMetrics()
+	}
+
 	if metrics == nil {
 		utils.Fail(w, http.StatusServiceUnavailable, utils.ErrNoBusinessMetrics, utils.ErrorMessage(utils.ErrNoBusinessMetrics))
 		return
@@ -239,6 +267,9 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 
 	// 检查 TeamSpeak 连接
 	tsStatus := checkTeamSpeakHealth()
+	
+	// 检查 Redis 连接
+	redisStatus := checkRedisHealth()
 
 	// 组合状态
 	status := map[string]any{
@@ -246,12 +277,14 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 		"timestamp": time.Now().Format(time.RFC3339),
 		"database":  dbStatus,
 		"teamspeak": tsStatus,
+		"redis":     redisStatus,
 	}
 
 	// 如果有任何服务不可用，返回 503
-	if dbStatus["status"] != "ok" || tsStatus["status"] != "ok" {
+	if dbStatus["status"] != "ok" || tsStatus["status"] != "ok" || redisStatus["status"] != "ok" {
 		status["status"] = "error"
-		log.Printf("Health check failed - Database: %v, TeamSpeak: %v", dbStatus["message"], tsStatus["message"])
+		log.Printf("Health check failed - Database: %v, TeamSpeak: %v, Redis: %v", 
+			dbStatus["message"], tsStatus["message"], redisStatus["message"])
 		utils.WriteJSON(w, http.StatusServiceUnavailable, utils.ErrServiceUnavailable, "Service Unavailable", status)
 		return
 	}
@@ -384,12 +417,55 @@ func checkTeamSpeakHealth() map[string]any {
 	return result
 }
 
+// 检查 Redis 健康状态
+func checkRedisHealth() map[string]any {
+	result := map[string]any{
+		"status":  "ok",
+		"message": "Redis connection is healthy",
+	}
+	
+	// 检查是否启用Redis
+	cfg := GetConfig()
+	if cfg == nil || !cfg.RedisConfig.Enabled {
+		result["status"] = "disabled"
+		result["message"] = "Redis is disabled"
+		return result
+	}
+	
+	// 检查Redis客户端是否初始化
+	if redisClient == nil {
+		result["status"] = "error"
+		result["message"] = "Redis client not initialized"
+		return result
+	}
+	
+	// 测试Redis连接
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	
+	_, err := redisClient.Ping(ctx).Result()
+	if err != nil {
+		log.Printf("Redis ping failed: %v", err)
+		result["status"] = "error"
+		result["message"] = "Redis connection failed"
+		result["error"] = err.Error()
+		return result
+	}
+	
+	return result
+}
+
 // 全局速率限制器
 var rateLimiter = rate.NewLimiter(rate.Every(2*time.Second), 5) // 降低请求频率限制
 
 // 在 init 函数中启动收集器
 func init() {
 	once.Do(func() {
+		// 初始化Redis缓存
+		if err := InitRedisCache(); err != nil {
+			log.Printf("Failed to initialize Redis cache: %v", err)
+		}
+		
 		// 获取性能配置
 		perfConfig := GetConfig().PerformanceConfig
 		
@@ -407,11 +483,13 @@ func init() {
 	})
 }
 
-// 在 main 函数退出时停止收集器
+// 在 main 函数退出时停止收集器和Redis缓存
 func Cleanup() {
 	if collector != nil {
 		collector.Stop()
 	}
+	
+	CloseRedisCache()
 }
 
 // GetCollector 获取收集器实例

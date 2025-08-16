@@ -39,7 +39,7 @@ database:
   auto_migrate: true
 
 monitoring:
-  collect_interval: 60s
+  collect_interval: 1h
   alert:
     enabled: true
     notify_methods: ["console", "email"]
@@ -52,13 +52,18 @@ monitoring:
     mount_points: ["/"]
     network_interfaces: ["eth0"]
   performance:
-    min_collection_interval: 30s
-    system_sample_rate: 3
-    business_sample_rate: 4
-    max_history_size: 50
-    collection_delay: 500ms
-    inter_func_delay: 50ms
-    inner_func_delay: 20ms
+    min_collection_interval: 1h
+    system_sample_rate: 1
+    business_sample_rate: 1
+    max_history_size: 24
+    collection_delay: 1s
+    inter_func_delay: 300s
+    inner_func_delay: 1s
+  redis:
+    enabled: false
+    addr: "localhost:6379"
+    password: ""
+    db: 0
 
 teamspeak:
   host: 127.0.0.1

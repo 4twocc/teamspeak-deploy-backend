@@ -89,13 +89,13 @@ type Collector struct {
 	// 复用的 TeamSpeak 客户端
 	tsClient   *TeamSpeakClient
 	tsClientMu sync.Mutex
-	
+
 	// 缓存控制
 	lastSystemCollection   time.Time
 	lastBusinessCollection time.Time
 	collectionMutex        sync.Mutex
 	minCollectionInterval  time.Duration
-	
+
 	// 采样率控制
 	systemSampleRate   int
 	businessSampleRate int
@@ -104,9 +104,13 @@ type Collector struct {
 		business int
 	}
 	sampleMutex sync.Mutex
-	
+
 	// 延迟控制
 	collectionDelay time.Duration
+
+	// 冷却期控制键
+	systemCooldownKey   string
+	businessCooldownKey string
 }
 
 // CollectorOption 收集器配置选项
@@ -151,7 +155,7 @@ func WithCollectionDelay(delay time.Duration) CollectorOption {
 func NewCollector(opts ...CollectorOption) *Collector {
 	// 获取配置
 	config := GetConfig()
-	
+
 	ctx, cancel := context.WithCancel(context.Background())
 	collector := &Collector{
 		ctx:                    ctx,
@@ -167,6 +171,8 @@ func NewCollector(opts ...CollectorOption) *Collector {
 		systemSampleRate:       config.PerformanceConfig.SystemSampleRate,
 		businessSampleRate:     config.PerformanceConfig.BusinessSampleRate,
 		collectionDelay:        config.PerformanceConfig.CollectionDelay,
+		systemCooldownKey:      "cooldown:system_metrics",
+		businessCooldownKey:    "cooldown:business_metrics",
 	}
 
 	// 应用选项
@@ -255,7 +261,7 @@ func withRetry(operation func() error, maxRetries int, initialBackoff time.Durat
 func (c *Collector) shouldCollect(lastCollection time.Time) bool {
 	c.collectionMutex.Lock()
 	defer c.collectionMutex.Unlock()
-	
+
 	// 检查距离上次收集是否已经超过最小间隔
 	return time.Since(lastCollection) >= c.minCollectionInterval
 }
@@ -264,19 +270,45 @@ func (c *Collector) shouldCollect(lastCollection time.Time) bool {
 func (c *Collector) shouldSample(isSystem bool) bool {
 	c.sampleMutex.Lock()
 	defer c.sampleMutex.Unlock()
-	
+
 	if isSystem {
 		c.sampleCounter.system++
 		if c.systemSampleRate <= 1 {
 			return true
 		}
-		return c.sampleCounter.system % c.systemSampleRate == 1
+		return c.sampleCounter.system%c.systemSampleRate == 1
 	} else {
 		c.sampleCounter.business++
 		if c.businessSampleRate <= 1 {
 			return true
 		}
-		return c.sampleCounter.business % c.businessSampleRate == 1
+		return c.sampleCounter.business%c.businessSampleRate == 1
+	}
+}
+
+// isInCooldown 检查是否在冷却期内
+func (c *Collector) isInCooldown(key string) bool {
+	if !GetConfig().RedisConfig.Enabled || redisClient == nil {
+		return false
+	}
+
+	inCooldown, err := isInCooldown(key, GetConfig().PerformanceConfig.InterFuncDelay)
+	if err != nil {
+		log.Printf("Failed to check cooldown for %s: %v", key, err)
+		return false
+	}
+
+	return inCooldown
+}
+
+// setCooldown 设置冷却期
+func (c *Collector) setCooldown(key string) {
+	if !GetConfig().RedisConfig.Enabled || redisClient == nil {
+		return
+	}
+
+	if err := setCooldown(key, GetConfig().PerformanceConfig.InterFuncDelay); err != nil {
+		log.Printf("Failed to set cooldown for %s: %v", key, err)
 	}
 }
 
@@ -284,7 +316,7 @@ func (c *Collector) shouldSample(isSystem bool) bool {
 func (c *Collector) updateLastCollection(isSystem bool) {
 	c.collectionMutex.Lock()
 	defer c.collectionMutex.Unlock()
-	
+
 	if isSystem {
 		c.lastSystemCollection = time.Now()
 	} else {
@@ -312,11 +344,17 @@ func (c *Collector) collectSystemMetrics() {
 		case <-c.ctx.Done():
 			return
 		case <-ticker.C:
+			// 检查是否在冷却期内
+			if c.isInCooldown(c.systemCooldownKey) {
+				log.Printf("Skipping system metrics collection due to cooldown")
+				continue
+			}
+
 			// 检查是否应该采样收集
 			if !c.shouldSample(true) {
 				continue
 			}
-			
+
 			// 检查是否应该收集（避免过于频繁的IO操作）
 			if !c.shouldCollect(c.lastSystemCollection) {
 				log.Printf("Skipping system metrics collection due to minimum interval constraint")
@@ -360,13 +398,23 @@ func (c *Collector) collectSystemMetrics() {
 			// Record metrics
 			c.recordMetrics()
 
+			// 缓存到Redis
+			if GetConfig().RedisConfig.Enabled {
+				if err := cacheSystemMetrics(metrics); err != nil {
+					log.Printf("Failed to cache system metrics: %v", err)
+				}
+			}
+
 			// Send to channel
 			select {
 			case c.systemMetricsChan <- metrics:
 			default:
 				log.Println("WARNING: System metrics channel is full, dropping metrics")
 			}
-			
+
+			// 设置冷却期
+			c.setCooldown(c.systemCooldownKey)
+
 			// 在每次收集后增加延迟，减轻系统压力
 			if c.collectionDelay > 0 {
 				time.Sleep(c.collectionDelay)
@@ -398,11 +446,17 @@ func (c *Collector) collectBusinessMetrics() {
 		case <-c.ctx.Done():
 			return
 		case <-ticker.C:
+			// 检查是否在冷却期内
+			if c.isInCooldown(c.businessCooldownKey) {
+				log.Printf("Skipping business metrics collection due to cooldown")
+				continue
+			}
+
 			// 检查是否应该采样收集
 			if !c.shouldSample(false) {
 				continue
 			}
-			
+
 			// 检查是否应该收集（避免过于频繁的IO操作）
 			if !c.shouldCollect(c.lastBusinessCollection) {
 				log.Printf("Skipping business metrics collection due to minimum interval constraint")
@@ -508,13 +562,23 @@ func (c *Collector) collectBusinessMetrics() {
 			// Record metrics
 			c.recordMetrics()
 
+			// 缓存到Redis
+			if GetConfig().RedisConfig.Enabled {
+				if err := cacheBusinessMetrics(metrics); err != nil {
+					log.Printf("Failed to cache business metrics: %v", err)
+				}
+			}
+
 			// Send to channel
 			select {
 			case c.businessMetricsChan <- metrics:
 			default:
 				log.Println("Business metrics channel is full, dropping data")
 			}
-			
+
+			// 设置冷却期
+			c.setCooldown(c.businessCooldownKey)
+
 			// 在每次收集后增加延迟，减轻系统压力
 			if c.collectionDelay > 0 {
 				time.Sleep(c.collectionDelay)
