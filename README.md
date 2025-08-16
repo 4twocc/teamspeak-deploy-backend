@@ -28,13 +28,19 @@
 
 2. 配置环境变量：
    ```bash
+   # 生产环境
    cp backend/.env.example backend/.env
-   # 编辑 backend/.env 文件，设置敏感配置
+   # 开发环境
+   cp backend/.env.development.example backend/.env.development
+   # 编辑相应的环境变量文件，设置敏感配置
    ```
 
 3. 启动服务：
    ```bash
+   # 生产环境
    docker-compose up -d
+   # 开发环境
+   docker-compose -f docker-compose.dev.yml up -d
    ```
 
 4. 访问 Web 界面：
@@ -60,10 +66,13 @@
 
 1. 复制示例环境变量文件：
    ```bash
+   # 生产环境
    cp backend/.env.example backend/.env
+   # 开发环境
+   cp backend/.env.development.example backend/.env.development
    ```
 
-2. 编辑 `backend/.env` 文件，设置实际值：
+2. 编辑相应的环境变量文件，设置实际值：
    ```bash
    TEAMSPEAK_PASSWORD=your_actual_teamspeak_password
    JWT_SECRET=your_actual_jwt_secret
