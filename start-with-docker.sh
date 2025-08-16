@@ -10,11 +10,15 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
+PURPLE='\033[0;35m'
 NC='\033[0m' # No Color
 
 # 打印带颜色的信息
+print_success() {
+    echo -e "${GREEN}[SUCCESS]${NC} "
+}
 print_info() {
-    echo -e "${GREEN}[INFO]${NC} $1"
+    echo -e "${BLUE}[INFO]${NC} $1"
 }
 
 print_warn() {
@@ -26,30 +30,30 @@ print_error() {
 }
 
 print_debug() {
-    echo -e "${BLUE}[DEBUG]${NC} $1"
+    echo -e "${PURPLE}[DEBUG]${NC} $1"
 }
 
 # 显示使用说明
 show_usage() {
-    echo "使用方法:"
-    echo "  ./start-with-docker.sh [选项]"
-    echo ""
-    echo "选项:"
-    echo "  -h, --help       显示此帮助信息"
-    echo "  -d, --dev        使用开发模式启动 (支持热重载)"
-    echo "  -b, --build      强制重新构建镜像"
-    echo "  -r, --registry   配置 Docker 镜像源"
-    echo "  -p, --pnpm       安装并配置 pnpm"
-    echo ""
-    echo "示例:"
-    echo "  ./start-with-docker.sh             # 生产模式启动"
-    echo "  ./start-with-docker.sh -d          # 开发模式启动"
-    echo "  ./start-with-docker.sh -b          # 强制重新构建并启动"
-    echo "  ./start-with-docker.sh -r          # 配置 Docker 镜像源并启动"
-    echo "  ./start-with-docker.sh -p          # 安装并配置 pnpm 并启动"
-    echo "  ./start-with-docker.sh -r -p       # 配置 Docker 镜像源并安装配置 pnpm"
-    echo "  ./start-with-docker.sh -r -d       # 配置 Docker 镜像源并以开发模式启动"
-    echo "  ./start-with-docker.sh -p -d       # 安装配置 pnpm 并以开发模式启动"
+    print_info "使用方法:"
+    print_info "  ./start-with-docker.sh [选项]"
+    print_info ""
+    print_info "选项:"
+    print_info "  -h, --help       显示此帮助信息"
+    print_info "  -d, --dev        使用开发模式启动 (支持热重载)"
+    print_info "  -b, --build      强制重新构建镜像"
+    print_info "  -r, --registry   配置 Docker 镜像源"
+    print_info "  -p, --pnpm       安装并配置 pnpm"
+    print_info ""
+    print_info "示例:"
+    print_info "  ./start-with-docker.sh             # 生产模式启动"
+    print_info "  ./start-with-docker.sh -d          # 开发模式启动"
+    print_info "  ./start-with-docker.sh -b          # 强制重新构建并启动"
+    print_info "  ./start-with-docker.sh -r          # 配置 Docker 镜像源并启动"
+    print_info "  ./start-with-docker.sh -p          # 安装并配置 pnpm 并启动"
+    print_info "  ./start-with-docker.sh -r -p       # 配置 Docker 镜像源并安装配置 pnpm"
+    print_info "  ./start-with-docker.sh -r -d       # 配置 Docker 镜像源并以开发模式启动"
+    print_info "  ./start-with-docker.sh -p -d       # 安装配置 pnpm 并以开发模式启动"
 }
 
 # 配置 Docker 镜像源
@@ -148,7 +152,7 @@ EOF
         systemctl restart docker
     fi
     
-    print_info "Docker 镜像源配置完成"
+    print_success "Docker 镜像源配置完成"
 }
 
 # 检查并安装pnpm
@@ -160,7 +164,7 @@ setup_pnpm() {
     
     # 检查是否已安装pnpm
     if command -v pnpm &> /dev/null; then
-        print_info "pnpm 已安装，版本: $(pnpm --version)"
+        print_success "pnpm 已安装，版本: $(pnpm --version)"
     else
         print_warn "pnpm 未安装，正在安装..."
         
@@ -186,7 +190,7 @@ setup_pnpm() {
             fi
         fi
         
-        print_info "pnpm安装成功，版本: $(pnpm --version)"
+        print_success "pnpm安装成功，版本: $(pnpm --version)"
     fi
     
     # 配置npm registry
@@ -195,19 +199,19 @@ setup_pnpm() {
     # 配置npm
     if command -v npm &> /dev/null; then
         npm config set registry https://registry.npmmirror.com
-        print_info "npm registry配置完成"
+        print_success "npm registry配置完成"
     else
         print_warn "未找到npm命令，跳过npm registry配置"
     fi
     
     # 配置.npmrc文件
     echo "registry=https://registry.npmmirror.com" > .npmrc
-    print_info ".npmrc文件配置完成"
+    print_success ".npmrc文件配置完成"
     
     # 返回上级目录
     cd ..
     
-    print_info "pnpm环境设置完成！"
+    print_success "pnpm环境设置完成！"
 }
 
 # 默认参数
@@ -271,7 +275,7 @@ else
     exit 1
 fi
 
-print_info "Docker 环境检查通过"
+print_success "Docker 环境检查通过"
 
 # 配置 Docker 镜像源（如果需要）
 if [ "$CONFIGURE_REGISTRY" = true ]; then
@@ -289,7 +293,7 @@ ENV_FILE_FOUND=false
 
 for env_file in "${ENV_FILES[@]}"; do
     if [ -f "$env_file" ]; then
-        print_info "找到环境变量文件: $env_file"
+        print_warn "找到环境变量文件: $env_file"
         ENV_FILE_FOUND=true
         break
     fi
@@ -344,14 +348,14 @@ sleep 5
 print_info "检查服务状态..."
 $DOCKER_COMPOSE_CMD -f $COMPOSE_FILE ps
 
-print_info "服务启动完成！"
-print_info "后端服务地址: http://localhost:8080"
-if [ "$DEV_MODE" = true ]; then
-    print_info "前端开发服务器地址: http://localhost:3000"
-else
-    print_info "前端服务地址: http://localhost"
-fi
-print_info "监控指标地址: http://localhost:9100"
+print_success "服务启动完成！"
+print_success "后端服务地址: http://localhost:8080"
+# if [ "$DEV_MODE" = true ]; then
+#     print_info "前端开发服务器地址: http://localhost:3000"
+# else
+#     print_info "前端服务地址: http://localhost"
+# fi
+print_success "监控指标地址: http://localhost:9100"
 
 print_info "使用以下命令查看日志:"
 print_info "  $DOCKER_COMPOSE_CMD -f $COMPOSE_FILE logs -f"

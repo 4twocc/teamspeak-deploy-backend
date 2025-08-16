@@ -3,20 +3,48 @@
 # 初始化环境脚本
 # 用于检查和安装必要的依赖项
 
+# 颜色定义
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+PURPLE='\033[0;35m'
+NC='\033[0m' # No Color
+
+# 打印带颜色的信息
+print_success() {
+    echo -e "${GREEN}[SUCCESS]${NC} "
+}
+print_info() {
+    echo -e "${BLUE}[INFO]${NC} $1"
+}
+
+print_warn() {
+    echo -e "${YELLOW}[WARN]${NC} $1"
+}
+
+print_error() {
+    echo -e "${RED}[ERROR]${NC} $1"
+}
+
+print_debug() {
+    echo -e "${PURPLE}[DEBUG]${NC} $1"
+}
+
 set -e
 
-echo "Initializing environment for TeamSpeak deployment..."
+print_info "Initializing environment for TeamSpeak deployment..."
 
 # 检查是否以root权限运行
 if [ "$EUID" -ne 0 ]
-  then echo "Please run as root"
+  then print_warn "Please run as root"
   exit 1
 fi
 
 # 检查并安装 Docker (Ubuntu/Debian)
 if ! command -v docker &> /dev/null
 then
-    echo "Docker not found. Installing Docker..."
+    print_warn "Docker not found. Installing Docker..."
     
     # 更新包索引
     apt-get update
@@ -49,27 +77,27 @@ then
     systemctl start docker
     systemctl enable docker
     
-    echo "Docker installed successfully"
+    print_success "Docker installed successfully"
 else
-    echo "Docker is already installed"
+    print_warn "Docker is already installed"
 fi
 
 # 验证 Docker 是否正常工作
 if ! docker info &> /dev/null
 then
-    echo "Error: Docker is not running. Starting Docker service..."
+    print_error "Error: Docker is not running. Starting Docker service..."
     systemctl start docker
     sleep 5
     
     if ! docker info &> /dev/null
     then
-        echo "Error: Failed to start Docker service"
+        print_error "Error: Failed to start Docker service"
         exit 1
     fi
 fi
 
 # 配置 Docker 镜像加速器和日志轮转
-echo "Configuring Docker daemon..."
+print_info "Configuring Docker daemon..."
 sudo mkdir -p /etc/docker
 sudo tee /etc/docker/daemon.json <<EOF
 {
@@ -91,4 +119,4 @@ EOF
 sudo systemctl daemon-reload
 sudo systemctl restart docker
 
-echo "Environment initialization completed successfully"
+print_success "Environment initialization completed successfully"
