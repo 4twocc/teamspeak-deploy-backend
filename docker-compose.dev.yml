@@ -30,15 +30,15 @@ services:
       CompileDaemon -build='go build -o teamspeak-backend .' -command='./teamspeak-backend'
       "
 
-  frontend:
-    build: ./frontend
-    ports:
-      - "3000:80"
-    depends_on:
-      - backend
-    restart: unless-stopped
-    volumes:
-      - ./frontend/src:/app/src
+  # frontend:
+  #   build: ./frontend
+  #   ports:
+  #     - "3000:80"
+  #   depends_on:
+  #     - backend
+  #   restart: unless-stopped
+  #   volumes:
+  #     - ./frontend/src:/app/src
 
   node-exporter:
     image: prom/node-exporter:latest

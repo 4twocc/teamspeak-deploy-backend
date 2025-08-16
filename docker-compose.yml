@@ -18,13 +18,13 @@ services:
       - TEAMSPEAK_SERVER_ADMIN_TOEKN=${TEAMSPEAK_SERVER_ADMIN_TOEKN}
       - TEAMSPEAK_SERVER_ADMIN_USERNAME=${TEAMSPEAK_SERVER_ADMIN_USERNAME}
 
-  frontend:
-    build: ./frontend
-    ports:
-      - "80:80"
-    depends_on:
-      - backend
-    restart: unless-stopped
+  # frontend:
+  #   build: ./frontend
+  #   ports:
+  #     - "80:80"
+  #   depends_on:
+  #     - backend
+  #   restart: unless-stopped
 
   node-exporter:
     image: prom/node-exporter:latest
