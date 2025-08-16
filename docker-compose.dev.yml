@@ -3,6 +3,7 @@ services:
     build: 
       context: ./backend
       dockerfile: Dockerfile
+      target: development
     ports:
       - "8080:8080"
     volumes:
@@ -26,7 +27,6 @@ services:
     command: >
       sh -c "
       go mod download &&
-      go install github.com/githubnemo/CompileDaemon@latest &&
       CompileDaemon -build='go build -o teamspeak-backend .' -command='./teamspeak-backend'
       "
 
