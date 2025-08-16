@@ -13,7 +13,7 @@ NC='\033[0m' # No Color
 
 # 打印带颜色的信息
 print_success() {
-    echo -e "${GREEN}[SUCCESS]${NC} "
+    echo -e "${GREEN}[SUCCESS]${NC} $1"
 }
 print_info() {
     echo -e "${BLUE}[INFO]${NC} $1"
