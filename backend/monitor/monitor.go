@@ -385,15 +385,17 @@ func checkTeamSpeakHealth() map[string]any {
 }
 
 // 全局速率限制器
-var rateLimiter = rate.NewLimiter(rate.Every(time.Second), 10) // 每秒最多10个请求
+var rateLimiter = rate.NewLimiter(rate.Every(2*time.Second), 5) // 降低请求频率限制
 
 // 在 init 函数中启动收集器
 func init() {
 	once.Do(func() {
 		// 使用更大的历史记录大小和最小收集间隔
 		collector = NewCollector(
-			WithMaxHistorySize(1000),
-			WithMinCollectionInterval(10*time.Second),
+			WithMaxHistorySize(50),              // 减少历史记录大小
+			WithMinCollectionInterval(30*time.Second), // 增加最小收集间隔到30秒
+			WithSystemSampleRate(3),             // 系统指标采样率降低到1/3
+			WithBusinessSampleRate(4),           // 业务指标采样率降低到1/4
 		)
 		if err := collector.Start(); err != nil {
 			log.Printf("Failed to start metrics collector: %v", err)

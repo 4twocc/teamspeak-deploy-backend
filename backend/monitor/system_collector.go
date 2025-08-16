@@ -72,49 +72,64 @@ func CollectSystemMetrics() (*SystemMetrics, error) {
 		Timestamp: time.Now(),
 	}
 
-	// 收集 CPU 使用率
-	if err := collectCPUUsage(metrics); err != nil {
-		return nil, fmt.Errorf("failed to collect CPU usage: %w", err)
+	// 并行收集各项指标以提高效率
+	var wg sync.WaitGroup
+	var cpuErr, memErr, diskErr, netErr, uptimeErr, loadErr error
+
+	wg.Add(6)
+	go func() {
+		defer wg.Done()
+		cpuErr = collectCPUUsage(metrics)
+	}()
+	
+	go func() {
+		defer wg.Done()
+		memErr = collectMemoryInfo(metrics)
+	}()
+	
+	go func() {
+		defer wg.Done()
+		diskErr = collectSimpleDiskUsage(metrics)
+	}()
+	
+	go func() {
+		defer wg.Done()
+		netErr = collectSimpleNetworkStats(metrics)
+	}()
+	
+	go func() {
+		defer wg.Done()
+		uptimeErr = collectUptime(metrics)
+	}()
+	
+	go func() {
+		defer wg.Done()
+		// 降低频率采集负载信息
+		if time.Now().Unix()%5 == 0 {
+			loadErr = collectLoadAvg(metrics)
+		}
+	}()
+
+	wg.Wait()
+
+	// 处理错误
+	if cpuErr != nil {
+		return nil, fmt.Errorf("failed to collect CPU usage: %w", cpuErr)
 	}
-
-	// 短暂延迟，避免资源竞争
-	time.Sleep(10 * time.Millisecond)
-
-	// 收集内存使用情况
-	if err := collectMemoryInfo(metrics); err != nil {
-		return nil, fmt.Errorf("failed to collect memory info: %w", err)
+	if memErr != nil {
+		return nil, fmt.Errorf("failed to collect memory info: %w", memErr)
 	}
-
-	// 短暂延迟，避免资源竞争
-	time.Sleep(10 * time.Millisecond)
-
-	// 收集磁盘使用情况
-	if err := collectDiskUsage(metrics); err != nil {
-		return nil, fmt.Errorf("failed to collect disk usage: %w", err)
+	if diskErr != nil {
+		return nil, fmt.Errorf("failed to collect disk usage: %w", diskErr)
 	}
-
-	// 短暂延迟，避免资源竞争
-	time.Sleep(10 * time.Millisecond)
-
-	// 收集网络统计信息
-	if err := collectNetworkStats(metrics); err != nil {
-		return nil, fmt.Errorf("failed to collect network stats: %w", err)
+	if netErr != nil {
+		return nil, fmt.Errorf("failed to collect network stats: %w", netErr)
 	}
-
-	// 短暂延迟，避免资源竞争
-	time.Sleep(10 * time.Millisecond)
-
-	// 收集系统运行时间
-	if err := collectUptime(metrics); err != nil {
-		return nil, fmt.Errorf("failed to collect uptime: %w", err)
+	if uptimeErr != nil {
+		return nil, fmt.Errorf("failed to collect uptime: %w", uptimeErr)
 	}
-
-	// 短暂延迟，避免资源竞争
-	time.Sleep(10 * time.Millisecond)
-
-	// 收集系统负载
-	if err := collectLoadAvg(metrics); err != nil {
-		return nil, fmt.Errorf("failed to collect load average: %w", err)
+	if loadErr != nil {
+		return nil, fmt.Errorf("failed to collect load average: %w", loadErr)
 	}
 
 	// 检查告警
@@ -128,8 +143,8 @@ func collectCPUUsage(metrics *SystemMetrics) error {
 	cpuMutex.Lock()
 	defer cpuMutex.Unlock()
 
-	// 添加小延迟以减少系统负载
-	time.Sleep(5 * time.Millisecond)
+	// 添加延迟以减少系统负载
+	time.Sleep(20 * time.Millisecond)
 
 	times, err := cpu.Times(false)
 	if err != nil || len(times) == 0 {
@@ -172,8 +187,8 @@ func collectCPUUsage(metrics *SystemMetrics) error {
 
 // collectMemoryInfo 收集内存信息（跨平台）
 func collectMemoryInfo(metrics *SystemMetrics) error {
-	// 添加小延迟以减少系统负载
-	time.Sleep(5 * time.Millisecond)
+	// 添加延迟以减少系统负载
+	time.Sleep(20 * time.Millisecond)
 	
 	vm, err := mem.VirtualMemory()
 	if err != nil {
@@ -186,55 +201,22 @@ func collectMemoryInfo(metrics *SystemMetrics) error {
 	return nil
 }
 
-// collectDiskUsage 收集磁盘使用情况（跨平台，聚合多个分区）
-func collectDiskUsage(metrics *SystemMetrics) error {
-	// 添加小延迟以减少系统负载
-	time.Sleep(5 * time.Millisecond)
+// collectSimpleDiskUsage 简化版磁盘使用情况收集（只检查根分区）
+func collectSimpleDiskUsage(metrics *SystemMetrics) error {
+	// 添加延迟以减少系统负载
+	time.Sleep(20 * time.Millisecond)
 	
-	parts, err := disk.Partitions(true)
+	// 只检查根分区，避免遍历所有分区
+	u, err := disk.Usage("/")
 	if err != nil {
 		return err
 	}
-
-	var total, used, free uint64
-	seenMount := map[string]bool{}
-	for _, p := range parts {
-		// 过滤不可用或虚拟文件系统
-		if !isUsableFS(p.Fstype, p.Opts, p.Mountpoint) {
-			continue
-		}
-		// 避免重复挂载点（某些系统 overlay/bind 导致重复）
-		if seenMount[p.Mountpoint] {
-			continue
-		}
-		seenMount[p.Mountpoint] = true
-
-		u, err := disk.Usage(p.Mountpoint)
-		if err != nil || u == nil {
-			continue
-		}
-		total += u.Total
-		used += u.Used
-		free += u.Free
-		
-		// 添加小延迟以减少系统负载
-		time.Sleep(1 * time.Millisecond)
-	}
-
-	// 回退：若聚合结果为空，使用根分区
-	if total == 0 {
-		u, err := disk.Usage("/")
-		if err != nil {
-			return err
-		}
-		total, used, free = u.Total, u.Used, u.Free
-	}
-
-	metrics.Disk.Total = total
-	metrics.Disk.Used = used
-	metrics.Disk.Free = free
-	if total > 0 {
-		metrics.Disk.Usage = (float64(used) / float64(total)) * 100
+	
+	metrics.Disk.Total = u.Total
+	metrics.Disk.Used = u.Used
+	metrics.Disk.Free = u.Free
+	if u.Total > 0 {
+		metrics.Disk.Usage = (float64(u.Used) / float64(u.Total)) * 100
 	} else {
 		metrics.Disk.Usage = 0
 	}
@@ -261,26 +243,26 @@ func isUsableFS(fstype string, opts []string, mount string) bool {
 	return true
 }
 
-// collectNetworkStats 收集网络统计信息（跨平台）
-func collectNetworkStats(metrics *SystemMetrics) error {
-	// 添加小延迟以减少系统负载
-	time.Sleep(5 * time.Millisecond)
+// collectSimpleNetworkStats 简化版网络统计信息收集（只收集主要接口）
+func collectSimpleNetworkStats(metrics *SystemMetrics) error {
+	// 添加延迟以减少系统负载
+	time.Sleep(20 * time.Millisecond)
 	
 	counters, err := gnet.IOCounters(true)
 	if err != nil {
 		return err
 	}
+	
 	var rx, tx uint64
 	for _, c := range counters {
 		name := strings.ToLower(c.Name)
-		if strings.HasPrefix(name, "lo") { // 跳过回环接口：lo / lo0
+		// 只收集主要网络接口，跳过回环和其他虚拟接口
+		if strings.HasPrefix(name, "lo") || strings.HasPrefix(name, "docker") || 
+		   strings.HasPrefix(name, "br-") || strings.HasPrefix(name, "veth") {
 			continue
 		}
 		rx += c.BytesRecv
 		tx += c.BytesSent
-		
-		// 添加小延迟以减少系统负载
-		time.Sleep(1 * time.Millisecond)
 	}
 
 	networkMutex.Lock()
@@ -305,8 +287,8 @@ func collectNetworkStats(metrics *SystemMetrics) error {
 
 // collectUptime 收集系统运行时间（跨平台）
 func collectUptime(metrics *SystemMetrics) error {
-	// 添加小延迟以减少系统负载
-	time.Sleep(5 * time.Millisecond)
+	// 添加延迟以减少系统负载
+	time.Sleep(20 * time.Millisecond)
 	
 	uptime, err := host.Uptime()
 	if err != nil {
@@ -318,8 +300,8 @@ func collectUptime(metrics *SystemMetrics) error {
 
 // collectLoadAvg 收集系统负载（跨平台，若不支持则回退为 0）
 func collectLoadAvg(metrics *SystemMetrics) error {
-	// 添加小延迟以减少系统负载
-	time.Sleep(5 * time.Millisecond)
+	// 添加延迟以减少系统负载
+	time.Sleep(20 * time.Millisecond)
 	
 	avg, err := load.Avg()
 	if err != nil {

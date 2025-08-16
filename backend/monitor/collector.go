@@ -89,12 +89,21 @@ type Collector struct {
 	// 复用的 TeamSpeak 客户端
 	tsClient   *TeamSpeakClient
 	tsClientMu sync.Mutex
-
+	
 	// 缓存控制
 	lastSystemCollection   time.Time
 	lastBusinessCollection time.Time
 	collectionMutex        sync.Mutex
 	minCollectionInterval  time.Duration
+	
+	// 采样率控制
+	systemSampleRate   int
+	businessSampleRate int
+	sampleCounter      struct {
+		system   int
+		business int
+	}
+	sampleMutex sync.Mutex
 }
 
 // CollectorOption 收集器配置选项
@@ -114,6 +123,20 @@ func WithMinCollectionInterval(interval time.Duration) CollectorOption {
 	}
 }
 
+// WithSystemSampleRate 设置系统指标采样率 (1/n 的频率收集)
+func WithSystemSampleRate(rate int) CollectorOption {
+	return func(c *Collector) {
+		c.systemSampleRate = rate
+	}
+}
+
+// WithBusinessSampleRate 设置业务指标采样率 (1/n 的频率收集)
+func WithBusinessSampleRate(rate int) CollectorOption {
+	return func(c *Collector) {
+		c.businessSampleRate = rate
+	}
+}
+
 // NewCollector 创建新的指标收集器
 func NewCollector(opts ...CollectorOption) *Collector {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -125,9 +148,11 @@ func NewCollector(opts ...CollectorOption) *Collector {
 		alertChan:              make(chan *Alert, 1000),
 		systemMetricsHistory:   make([]*SystemMetrics, 0),
 		businessMetricsHistory: make([]*BusinessMetrics, 0),
-		maxHistorySize:         100, // 默认保存100条历史记录
+		maxHistorySize:         50, // 减少默认历史记录大小
 		startTime:              time.Now(),
-		minCollectionInterval:  config.MonitoringConfig.MinCollectionInterval * time.Second, // 默认最小收集间隔30秒
+		minCollectionInterval:  15 * time.Second, // 增加最小收集间隔到15秒
+		systemSampleRate:       2, // 系统指标每2次只收集1次
+		businessSampleRate:     3, // 业务指标每3次只收集1次
 	}
 
 	// 应用选项
@@ -216,16 +241,36 @@ func withRetry(operation func() error, maxRetries int, initialBackoff time.Durat
 func (c *Collector) shouldCollect(lastCollection time.Time) bool {
 	c.collectionMutex.Lock()
 	defer c.collectionMutex.Unlock()
-
+	
 	// 检查距离上次收集是否已经超过最小间隔
 	return time.Since(lastCollection) >= c.minCollectionInterval
+}
+
+// shouldSample 判断是否应该进行采样收集
+func (c *Collector) shouldSample(isSystem bool) bool {
+	c.sampleMutex.Lock()
+	defer c.sampleMutex.Unlock()
+	
+	if isSystem {
+		c.sampleCounter.system++
+		if c.systemSampleRate <= 1 {
+			return true
+		}
+		return c.sampleCounter.system % c.systemSampleRate == 1
+	} else {
+		c.sampleCounter.business++
+		if c.businessSampleRate <= 1 {
+			return true
+		}
+		return c.sampleCounter.business % c.businessSampleRate == 1
+	}
 }
 
 // updateLastCollection 更新上次收集时间
 func (c *Collector) updateLastCollection(isSystem bool) {
 	c.collectionMutex.Lock()
 	defer c.collectionMutex.Unlock()
-
+	
 	if isSystem {
 		c.lastSystemCollection = time.Now()
 	} else {
@@ -253,6 +298,11 @@ func (c *Collector) collectSystemMetrics() {
 		case <-c.ctx.Done():
 			return
 		case <-ticker.C:
+			// 检查是否应该采样收集
+			if !c.shouldSample(true) {
+				continue
+			}
+			
 			// 检查是否应该收集（避免过于频繁的IO操作）
 			if !c.shouldCollect(c.lastSystemCollection) {
 				log.Printf("Skipping system metrics collection due to minimum interval constraint")
@@ -265,7 +315,7 @@ func (c *Collector) collectSystemMetrics() {
 				var err error
 				metrics, err = CollectSystemMetrics()
 				return err
-			}, 3, time.Second) // 3 retries with 1s initial backoff
+			}, 2, 2*time.Second) // 减少重试次数和增加初始退避时间
 
 			if err != nil {
 				c.recordError()
@@ -302,6 +352,9 @@ func (c *Collector) collectSystemMetrics() {
 			default:
 				log.Println("WARNING: System metrics channel is full, dropping metrics")
 			}
+			
+			// 在每次收集后增加延迟，减轻系统压力
+			time.Sleep(500 * time.Millisecond)
 		}
 	}
 }
@@ -322,13 +375,18 @@ func (c *Collector) collectBusinessMetrics() {
 
 	var lastErr error
 	var retryCount int
-	const maxRetries = 3
+	const maxRetries = 2 // 减少重试次数
 
 	for {
 		select {
 		case <-c.ctx.Done():
 			return
 		case <-ticker.C:
+			// 检查是否应该采样收集
+			if !c.shouldSample(false) {
+				continue
+			}
+			
 			// 检查是否应该收集（避免过于频繁的IO操作）
 			if !c.shouldCollect(c.lastBusinessCollection) {
 				log.Printf("Skipping business metrics collection due to minimum interval constraint")
@@ -440,6 +498,9 @@ func (c *Collector) collectBusinessMetrics() {
 			default:
 				log.Println("Business metrics channel is full, dropping data")
 			}
+			
+			// 在每次收集后增加延迟，减轻系统压力
+			time.Sleep(500 * time.Millisecond)
 		}
 	}
 }

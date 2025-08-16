@@ -39,8 +39,7 @@ database:
   auto_migrate: true
 
 monitoring:
-  collect_interval: 180s
-  min_collection_interval: 30
+  collect_interval: 60s
   alert:
     enabled: true
     notify_methods: ["console", "email"]
@@ -58,9 +57,9 @@ teamspeak:
   username: serveradmin
   # password 通过环境变量 TEAMSPEAK_PASSWORD 设置
   nickname: "Monitoring Bot"
-  reconnect_max_retries: 5
-  reconnect_initial_backoff: 1   # seconds
-  reconnect_max_backoff: 30      # seconds
+  reconnect_max_retries: 3
+  reconnect_initial_backoff: 2   # seconds
+  reconnect_max_backoff: 60      # seconds
 
 security:
   # jwt_secret 通过环境变量 JWT_SECRET 设置

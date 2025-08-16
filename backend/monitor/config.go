@@ -13,6 +13,9 @@ type Config struct {
 	// 收集间隔
 	CollectInterval time.Duration `yaml:"collect_interval"`
 
+	// 最小收集间隔
+	MinCollectionInterval time.Duration `yaml:"min_collection_interval"`
+
 	// 告警相关配置
 	AlertConfig AlertConfig `yaml:"alert_config"`
 
@@ -74,7 +77,8 @@ func GetConfig() *Config {
 	configOnce.Do(func() {
 		// 默认配置
 		config = &Config{
-			CollectInterval: 60 * time.Second,
+			CollectInterval:       60 * time.Second,
+			MinCollectionInterval: 30 * time.Second,
 			AlertConfig: AlertConfig{
 				Enabled:       true,
 				NotifyMethods: []string{"console"},
