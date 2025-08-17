@@ -9,150 +9,150 @@ import (
 
 // Config 应用配置结构
 type Config struct {
-	Server     ServerConfig     `mapstructure:"server"`
-	Database   DatabaseConfig   `mapstructure:"database"`
-	Monitoring MonitoringConfig `mapstructure:"monitoring"`
-	Teamspeak  TeamspeakConfig  `mapstructure:"teamspeak"`
-	Security   SecurityConfig   `mapstructure:"security"`
-	Deployment DeploymentConfig `mapstructure:"deployment"`
+	Server     ServerConfig     `yaml:"server"`
+	Database   DatabaseConfig   `yaml:"database"`
+	Monitoring MonitoringConfig `yaml:"monitoring"`
+	Teamspeak  TeamspeakConfig  `yaml:"teamspeak"`
+	Security   SecurityConfig   `yaml:"security"`
+	Deployment DeploymentConfig `yaml:"deployment"`
 }
 
 // ServerConfig 服务器配置
 type ServerConfig struct {
-	Port       string           `mapstructure:"port"`
-	Env        string           `mapstructure:"env"`
-	LogLevel   string           `mapstructure:"log_level"`
-	RateLimit  RateLimitConfig  `mapstructure:"rate_limit"`
-	Auth       AuthConfig       `mapstructure:"auth"`
-	CORS       CORSConfig       `mapstructure:"cors"`
-	Middleware MiddlewareConfig `mapstructure:"middleware"`
+	Port       string           `yaml:"port"`
+	Env        string           `yaml:"env"`
+	LogLevel   string           `yaml:"log_level"`
+	RateLimit  RateLimitConfig  `yaml:"rate_limit"`
+	Auth       AuthConfig       `yaml:"auth"`
+	CORS       CORSConfig       `yaml:"cors"`
+	Middleware MiddlewareConfig `yaml:"middleware"`
 }
 
 // RateLimitConfig 限流配置
 type RateLimitConfig struct {
-	Enabled bool    `mapstructure:"enabled"`
-	RPS     float64 `mapstructure:"rps"`
-	Burst   int     `mapstructure:"burst"`
+	Enabled bool    `yaml:"enabled"`
+	RPS     float64 `yaml:"rps"`
+	Burst   int     `yaml:"burst"`
 }
 
 // AuthConfig 认证配置
 type AuthConfig struct {
-	RequireAuth bool     `mapstructure:"require_auth"`
-	PublicPaths []string `mapstructure:"public_paths"`
+	RequireAuth bool     `yaml:"require_auth"`
+	PublicPaths []string `yaml:"public_paths"`
 }
 
 // CORSConfig CORS配置
 type CORSConfig struct {
-	AllowedOrigins   []string `mapstructure:"allowed_origins"`
-	AllowedMethods   []string `mapstructure:"allowed_methods"`
-	AllowedHeaders   []string `mapstructure:"allowed_headers"`
-	ExposeHeaders    []string `mapstructure:"expose_headers"`
-	AllowCredentials bool     `mapstructure:"allow_credentials"`
+	AllowedOrigins   []string `yaml:"allowed_origins"`
+	AllowedMethods   []string `yaml:"allowed_methods"`
+	AllowedHeaders   []string `yaml:"allowed_headers"`
+	ExposeHeaders    []string `yaml:"expose_headers"`
+	AllowCredentials bool     `yaml:"allow_credentials"`
 }
 
 // MiddlewareConfig 中间件配置
 type MiddlewareConfig struct {
-	EnableAccessLog bool `mapstructure:"enable_access_log"`
+	EnableAccessLog bool `yaml:"enable_access_log"`
 }
 
 // DatabaseConfig 数据库配置
 type DatabaseConfig struct {
-	Driver          string        `mapstructure:"driver"`
-	DSN             string        `mapstructure:"dsn"`
-	MaxIdleConns    int           `mapstructure:"max_idle_conns"`
-	MaxOpenConns    int           `mapstructure:"max_open_conns"`
-	ConnMaxLifetime time.Duration `mapstructure:"conn_max_lifetime"`
-	AutoMigrate     bool          `mapstructure:"auto_migrate"`
+	Driver          string        `yaml:"driver"`
+	DSN             string        `yaml:"dsn"`
+	MaxIdleConns    int           `yaml:"max_idle_conns"`
+	MaxOpenConns    int           `yaml:"max_open_conns"`
+	ConnMaxLifetime time.Duration `yaml:"conn_max_lifetime"`
+	AutoMigrate     bool          `yaml:"auto_migrate"`
 }
 
 // MonitoringConfig 监控配置
 type MonitoringConfig struct {
-	Addr                  string        `mapstructure:"addr"`
-	CollectInterval       time.Duration `mapstructure:"collect_interval"`
-	MinCollectionInterval time.Duration `mapstructure:"min_collection_interval"`
-	Alert                 AlertConfig   `mapstructure:"alert"`
-	System                SystemConfig  `mapstructure:"system"`
-	Performance           PerformanceConfig `mapstructure:"performance"`
-	Redis                 RedisConfig   `mapstructure:"redis"`
+	Addr                  string        `yaml:"addr"`
+	CollectInterval       time.Duration `yaml:"collect_interval"`
+	MinCollectionInterval time.Duration `yaml:"min_collection_interval"`
+	Alert                 AlertConfig   `yaml:"alert"`
+	System                SystemConfig  `yaml:"system"`
+	Performance           PerformanceConfig `yaml:"performance"`
+	Redis                 RedisConfig   `yaml:"redis"`
 }
 
 // SystemConfig 系统监控配置
 type SystemConfig struct {
 	// 监控的挂载点
-	MountPoints []string `mapstructure:"mount_points"`
+	MountPoints []string `yaml:"mount_points"`
 
 	// 网络接口
-	NetworkInterfaces []string `mapstructure:"network_interfaces"`
+	NetworkInterfaces []string `yaml:"network_interfaces"`
 }
 
 // PerformanceConfig 性能优化配置
 type PerformanceConfig struct {
 	// 系统指标采样率 (1/N 的频率收集)
-	SystemSampleRate int `mapstructure:"system_sample_rate"`
+	SystemSampleRate int `yaml:"system_sample_rate"`
 	
 	// 业务指标采样率 (1/N 的频率收集)
-	BusinessSampleRate int `mapstructure:"business_sample_rate"`
+	BusinessSampleRate int `yaml:"business_sample_rate"`
 	
 	// 历史记录最大数量
-	MaxHistorySize int `mapstructure:"max_history_size"`
+	MaxHistorySize int `yaml:"max_history_size"`
 	
 	// 收集后延迟时间
-	CollectionDelay time.Duration `mapstructure:"collection_delay"`
+	CollectionDelay time.Duration `yaml:"collection_delay"`
 	
 	// 函数间延迟时间
-	InterFuncDelay time.Duration `mapstructure:"inter_func_delay"`
+	InterFuncDelay time.Duration `yaml:"inter_func_delay"`
 	
 	// 函数内延迟时间
-	InnerFuncDelay time.Duration `mapstructure:"inner_func_delay"`
+	InnerFuncDelay time.Duration `yaml:"inner_func_delay"`
 }
 
 // RedisConfig Redis配置
 type RedisConfig struct {
-	Enabled  bool   `mapstructure:"enabled"`
-	Addr     string `mapstructure:"addr"`
-	Password string `mapstructure:"password"`
-	DB       int    `mapstructure:"db"`
+	Enabled  bool   `yaml:"enabled"`
+	Addr     string `yaml:"addr"`
+	Password string `yaml:"password"`
+	DB       int    `yaml:"db"`
 }
 
 // AlertConfig 告警配置
 type AlertConfig struct {
-	Enabled       bool            `mapstructure:"enabled"`
-	NotifyMethods []string        `mapstructure:"notify_methods"`
-	Thresholds    ThresholdConfig `mapstructure:"thresholds"`
+	Enabled       bool            `yaml:"enabled"`
+	NotifyMethods []string        `yaml:"notify_methods"`
+	Thresholds    ThresholdConfig `yaml:"thresholds"`
 }
 
 // ThresholdConfig 阈值配置
 type ThresholdConfig struct {
-	CPU          float64 `mapstructure:"cpu"`
-	Memory       float64 `mapstructure:"memory"`
-	Disk         float64 `mapstructure:"disk"`
-	VoiceQuality float64 `mapstructure:"voice_quality"`
+	CPU          float64 `yaml:"cpu"`
+	Memory       float64 `yaml:"memory"`
+	Disk         float64 `yaml:"disk"`
+	VoiceQuality float64 `yaml:"voice_quality"`
 }
 
 // TeamspeakConfig TeamSpeak配置
 type TeamspeakConfig struct {
-	Host                    string        `mapstructure:"host"`
-	QueryPort               int           `mapstructure:"query_port"`
-	VirtualServerPort       int           `mapstructure:"virtual_server_port"`
-	VirtualServerID         int           `mapstructure:"virtual_server_id"`
-	Username                string        `mapstructure:"username"`
-	Password                string        `mapstructure:"password"`
-	Nickname                string        `mapstructure:"nickname"`
-	ReconnectMaxRetries     int           `mapstructure:"reconnect_max_retries"`
-	ReconnectInitialBackoff time.Duration `mapstructure:"reconnect_initial_backoff"`
-	ReconnectMaxBackoff     time.Duration `mapstructure:"reconnect_max_backoff"`
+	Host                    string        `yaml:"host"`
+	QueryPort               int           `yaml:"query_port"`
+	VirtualServerPort       int           `yaml:"virtual_server_port"`
+	VirtualServerID         int           `yaml:"virtual_server_id"`
+	Username                string        `yaml:"username"`
+	Password                string        `yaml:"password"`
+	Nickname                string        `yaml:"nickname"`
+	ReconnectMaxRetries     int           `yaml:"reconnect_max_retries"`
+	ReconnectInitialBackoff time.Duration `yaml:"reconnect_initial_backoff"`
+	ReconnectMaxBackoff     time.Duration `yaml:"reconnect_max_backoff"`
 }
 
 // SecurityConfig 安全配置
 type SecurityConfig struct {
-	JWTSecret          string `mapstructure:"jwt_secret"`
-	PasswordSaltRounds int    `mapstructure:"password_salt_rounds"`
+	JWTSecret          string `yaml:"jwt_secret"`
+	PasswordSaltRounds int    `yaml:"password_salt_rounds"`
 }
 
 // DeploymentConfig 部署配置
 type DeploymentConfig struct {
-	ScriptDir string        `mapstructure:"script_dir"`
-	Timeout   time.Duration `mapstructure:"timeout"`
+	ScriptDir string        `yaml:"script_dir"`
+	Timeout   time.Duration `yaml:"timeout"`
 }
 
 // Load 从文件加载配置
@@ -241,18 +241,21 @@ func DefaultConfig() *Config {
 			Auth: AuthConfig{
 				RequireAuth: true,
 				PublicPaths: []string{
-					"/api/auth/login",
-					"/api/auth/me",
-					"/api/health",
-					"/metrics",
+					"/api/v1/auth/login",
+					"/api/v1/auth/register",
+					"/health",
 				},
 			},
 			CORS: CORSConfig{
-				AllowedOrigins:   []string{"*"},
-				AllowedMethods:   []string{"GET", "POST", "DELETE", "PUT", "OPTIONS"},
-				AllowedHeaders:   []string{"Content-Type", "Authorization", "X-Request-ID"},
-				ExposeHeaders:    []string{"X-Request-ID"},
-				AllowCredentials: true,
+				AllowedOrigins: []string{"*"},
+				AllowedMethods: []string{
+					"GET", "POST", "PUT", "DELETE", "OPTIONS",
+				},
+				AllowedHeaders: []string{
+					"Accept", "Authorization", "Content-Type", "X-CSRF-Token",
+				},
+				ExposeHeaders:    []string{},
+				AllowCredentials: false,
 			},
 			Middleware: MiddlewareConfig{
 				EnableAccessLog: true,
@@ -261,39 +264,40 @@ func DefaultConfig() *Config {
 		Database: DatabaseConfig{
 			Driver:          "sqlite",
 			DSN:             "data/teamspeak.db",
-			MaxIdleConns:    10,
-			MaxOpenConns:    100,
-			ConnMaxLifetime: time.Hour,
+			MaxIdleConns:    5,
+			MaxOpenConns:    10,
+			ConnMaxLifetime: 1 * time.Hour,
 			AutoMigrate:     true,
 		},
 		Monitoring: MonitoringConfig{
-			Addr:            ":9090",
-			CollectInterval: 60 * time.Second,
+			Addr:                  ":9090",
+			CollectInterval:       1 * time.Minute,
+			MinCollectionInterval: 1 * time.Hour,
 			Alert: AlertConfig{
 				Enabled:       true,
-				NotifyMethods: []string{"console", "email"},
+				NotifyMethods: []string{"log"},
 				Thresholds: ThresholdConfig{
-					CPU:          90,
-					Memory:       85,
-					Disk:         80,
-					VoiceQuality: 0.7,
+					CPU:          80.0,
+					Memory:       80.0,
+					Disk:         90.0,
+					VoiceQuality: 70.0,
 				},
 			},
 			System: SystemConfig{
 				MountPoints:       []string{"/"},
-				NetworkInterfaces: []string{"eth0"},
+				NetworkInterfaces: []string{"eth0", "en0"},
 			},
 			Performance: PerformanceConfig{
-				SystemSampleRate:      3,
-				BusinessSampleRate:    4,
-				MaxHistorySize:        50,
-				CollectionDelay:       500 * time.Millisecond,
-				InterFuncDelay:        50 * time.Millisecond,
-				InnerFuncDelay:        20 * time.Millisecond,
+				SystemSampleRate:   1,
+				BusinessSampleRate: 1,
+				MaxHistorySize:     24,
+				CollectionDelay:    2 * time.Second,
+				InterFuncDelay:     10 * time.Minute,
+				InnerFuncDelay:     5 * time.Second,
 			},
 			Redis: RedisConfig{
-				Enabled:  false,
-				Addr:     "localhost:6379",
+				Enabled:  true,
+				Addr:     "redis:6379",
 				Password: "",
 				DB:       0,
 			},
@@ -301,17 +305,17 @@ func DefaultConfig() *Config {
 		Teamspeak: TeamspeakConfig{
 			Host:                    "127.0.0.1",
 			QueryPort:               10011,
-			VirtualServerPort:       30033,
-			VirtualServerID:         0,
+			VirtualServerPort:       9987,
+			VirtualServerID:         1,
 			Username:                "serveradmin",
-			Password:                "your_password_here",
+			Password:                "",
 			Nickname:                "Monitoring Bot",
-			ReconnectMaxRetries:     5,
-			ReconnectInitialBackoff: 1 * time.Second,
-			ReconnectMaxBackoff:     30 * time.Second,
+			ReconnectMaxRetries:     3,
+			ReconnectInitialBackoff: 2 * time.Second,
+			ReconnectMaxBackoff:     60 * time.Second,
 		},
 		Security: SecurityConfig{
-			JWTSecret:          "your_jwt_secret_here",
+			JWTSecret:          "",
 			PasswordSaltRounds: 10,
 		},
 		Deployment: DeploymentConfig{

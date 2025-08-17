@@ -41,15 +41,13 @@ func NewTeamSpeakClient(config configPkg.TeamspeakConfig) (*TeamSpeakClient, err
 func (c *TeamSpeakClient) connect() error {
 	// 构造连接地址
 	addr := fmt.Sprintf("%s:%d", c.config.Host, c.config.QueryPort)
+	log.Printf("Attempting to connect to TeamSpeak server at %s", addr)
 
 	// 创建 TeamSpeak 客户端
 	client, err := ts3.NewClient(addr)
 	if err != nil {
 		return fmt.Errorf("failed to create TeamSpeak client: %w", err)
 	}
-
-	// 设置超时
-	// client.Cmd.SetTimeout(time.Duration(c.config.ReconnectInitialBackoff) * time.Second)
 
 	// 登录
 	if err := client.Login(c.config.Username, c.config.Password); err != nil {
@@ -59,10 +57,12 @@ func (c *TeamSpeakClient) connect() error {
 
 	// 选择虚拟服务器
 	if c.config.VirtualServerID > 0 {
-		// if err := client.Cmd.Execute("use", fmt.Sprintf("sid=%d", c.config.VirtualServerID)); err != nil {
-		// 	_ = client.Close()
-		// 	return fmt.Errorf("failed to select virtual server: %w", err)
-		// }
+		// 使用 ExecCmd 方法执行 use 命令
+		cmd := ts3.NewCmd(fmt.Sprintf("use sid=%d", c.config.VirtualServerID))
+		if _, err := client.ExecCmd(cmd); err != nil {
+			_ = client.Close()
+			return fmt.Errorf("failed to select virtual server: %w", err)
+		}
 	} else if c.config.VirtualServerPort > 0 {
 		if err := client.UsePort(c.config.VirtualServerPort); err != nil {
 			_ = client.Close()
@@ -70,14 +70,8 @@ func (c *TeamSpeakClient) connect() error {
 		}
 	}
 
-	// 设置昵称
-	if c.config.Nickname != "" {
-		// if err := client.Cmd.Execute("clientupdate", fmt.Sprintf("client_nickname=%s", c.config.Nickname)); err != nil {
-		// 	log.Printf("Warning: failed to set nickname: %v", err)
-		// }
-	}
-
 	c.client = client
+	log.Println("Successfully connected to TeamSpeak server")
 	return nil
 }
 
@@ -127,7 +121,6 @@ func (c *TeamSpeakClient) ensureConnected() error {
 
 		// Success
 		log.Println("Successfully reconnected to TeamSpeak server")
-		// promReconnectsTotal.Inc() // Increment reconnect counter
 		return nil
 	}
 
@@ -146,43 +139,12 @@ func (c *TeamSpeakClient) GetServerInfo() (*ServerInfo, error) {
 		return nil, fmt.Errorf("failed to get server info: %w", err)
 	}
 
-	// Get server instance info
-	// sii, err := c.client.Server.InstanceInfo()
-	// if err != nil {
-	// 	return nil, fmt.Errorf("failed to get server instance info: %w", err)
-	// }
-
 	info := &ServerInfo{
 		OnlineUsers:  si.ClientsOnline,
-		ChannelCount: 0, // Placeholder - need to find proper way to get channel count
-		Uptime:       time.Duration(0) * time.Second, // Placeholder for uptime
-		// VoiceQuality is a synthetic metric based on packet loss, ping, etc.
-		// For now, we'll use a placeholder value
-		VoiceQuality: 80.0,
+		ChannelCount: si.ChannelsOnline,
+		Uptime:       time.Duration(si.Uptime) * time.Second,
+		VoiceQuality: 80.0, // Placeholder for now
 	}
-
-	// Calculate voice quality based on server info
-	// packetLoss := si.PacketLossTotal
-	// ping := si.Ping
-
-	// Simple voice quality calculation:
-	// Start with 100%, subtract penalty for packet loss and ping
-	quality := 100.0
-	// if packetLoss > 0 {
-	// 	quality -= packetLoss * 100 * 2 // 2x penalty for packet loss
-	// }
-	// if ping > 50 {
-	// 	quality -= float64(ping-50) * 0.5 // 0.5% penalty for each ms over 50
-	// }
-
-	// Ensure quality is between 0 and 100
-	if quality < 0 {
-		quality = 0
-	} else if quality > 100 {
-		quality = 100
-	}
-
-	info.VoiceQuality = quality
 
 	return info, nil
 }

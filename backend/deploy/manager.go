@@ -3,92 +3,113 @@ package deploy
 import (
 	"context"
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
+	"strings"
 	"time"
 )
 
 // DeploymentManager 部署管理器
 type DeploymentManager struct {
 	scriptDir string
+	timeout   time.Duration
 }
 
 // NewDeploymentManager 创建新的部署管理器
 func NewDeploymentManager(scriptDir string) *DeploymentManager {
 	return &DeploymentManager{
 		scriptDir: scriptDir,
+		timeout:   10 * time.Minute, // 默认超时时间
 	}
 }
 
-// Deploy 执行一键部署
+// SetTimeout 设置超时时间
+func (dm *DeploymentManager) SetTimeout(timeout time.Duration) {
+	dm.timeout = timeout
+}
+
+// IsDockerAvailable 检查Docker是否可用
+func (dm *DeploymentManager) IsDockerAvailable() bool {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "docker", "version")
+	err := cmd.Run()
+	return err == nil
+}
+
+// GetContainerStatus 获取容器状态
+func (dm *DeploymentManager) GetContainerStatus() (map[string]any, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "docker", "ps", "--format", "table {{.Names}}\\t{{.Status}}\\t{{.Ports}}")
+	output, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get container status: %w", err)
+	}
+
+	return map[string]any{
+		"container_info":   output,
+		"docker_available": dm.IsDockerAvailable(),
+	}, nil
+}
+
+// GetDeploymentStatus 获取部署状态
+func (dm *DeploymentManager) GetDeploymentStatus() (map[string]any, error) {
+	return map[string]any{
+		"docker_available": dm.IsDockerAvailable(),
+		"script_dir":       dm.scriptDir,
+	}, nil
+}
+
+// ExecuteScript 执行部署脚本
+func (dm *DeploymentManager) ExecuteScript(scriptName string) error {
+	// 构建脚本路径
+	scriptPath := fmt.Sprintf("%s/%s", dm.scriptDir, scriptName)
+
+	// 检查脚本文件是否存在
+	if _, err := os.Stat(scriptPath); os.IsNotExist(err) {
+		return fmt.Errorf("script %s not found", scriptPath)
+	}
+
+	// 设置执行上下文和超时
+	ctx, cancel := context.WithTimeout(context.Background(), dm.timeout)
+	defer cancel()
+
+	// 创建命令
+	cmd := exec.CommandContext(ctx, "bash", scriptPath)
+
+	// 设置工作目录为脚本目录
+	cmd.Dir = dm.scriptDir
+
+	// 捕获输出
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("failed to execute script %s: %w\nOutput: %s", scriptName, err, string(output))
+	}
+
+	// 记录成功执行日志
+	log.Printf("Successfully executed script %s", scriptName)
+	log.Printf("Script output: %s", strings.TrimSpace(string(output)))
+
+	return nil
+}
+
 func (dm *DeploymentManager) Deploy() error {
 	scriptPath := fmt.Sprintf("%s/one-click.sh", dm.scriptDir)
-	return dm.executeScript(scriptPath)
+	return dm.ExecuteScript(scriptPath)
 }
 
 // InitEnvironment 初始化环境
 func (dm *DeploymentManager) InitEnvironment() error {
 	scriptPath := fmt.Sprintf("%s/init-env.sh", dm.scriptDir)
-	return dm.executeScript(scriptPath)
+	return dm.ExecuteScript(scriptPath)
 }
 
 // Cleanup 清理部署
 func (dm *DeploymentManager) Cleanup() error {
 	scriptPath := fmt.Sprintf("%s/cleanup.sh", dm.scriptDir)
-	return dm.executeScript(scriptPath)
-}
-
-// executeScript 执行脚本
-func (dm *DeploymentManager) executeScript(scriptPath string) error {
-	// 检查脚本是否存在
-	if _, err := os.Stat(scriptPath); os.IsNotExist(err) {
-		return fmt.Errorf("script not found: %s", scriptPath)
-	}
-
-	// 执行脚本
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
-	defer cancel()
-
-	cmd := exec.CommandContext(ctx, "bash", scriptPath)
-	cmd.Dir = "."
-
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("script execution failed: %v, output: %s", err, string(output))
-	}
-
-	return nil
-}
-
-// GetContainerStatus 获取容器状态
-func (dm *DeploymentManager) GetContainerStatus() (map[string]any, error) {
-	// 检查 Docker 是否可用
-	if !dm.isDockerAvailable() {
-		return map[string]any{
-			"docker_available": false,
-			"status":           "unavailable",
-		}, nil
-	}
-
-	// 检查 TeamSpeak 容器状态
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	cmd := exec.CommandContext(ctx, "docker", "ps", "-a", "--format", "table {{.Names}}\t{{.Status}}\t{{.Ports}}")
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get container status: %v", err)
-	}
-
-	return map[string]any{
-		"docker_available": true,
-		"container_info":   output,
-	}, nil
-}
-
-// isDockerAvailable 检查 Docker 是否可用
-func (dm *DeploymentManager) isDockerAvailable() bool {
-	cmd := exec.Command("docker", "info")
-	err := cmd.Run()
-	return err == nil
+	return dm.ExecuteScript(scriptPath)
 }

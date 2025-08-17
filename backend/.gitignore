@@ -48,6 +48,7 @@ Thumbs.db
 # Original .gitignore content
 # backend
 data/*
+test/*
 teamspeak-one-click-deploy
 
 # Logs

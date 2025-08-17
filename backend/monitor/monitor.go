@@ -25,6 +25,7 @@ func RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1/monitor/business", businessMonitorHandler)
 	mux.HandleFunc("/api/v1/monitor/history", historyMonitorHandler)
 	mux.HandleFunc("/api/v1/monitor/status", statusHandler)
+	mux.HandleFunc("/api/v1/monitor/redis/health", redisHealthHandler)
 	mux.Handle("/metrics", metricsHandler())
 }
 
@@ -52,6 +53,14 @@ var (
 		Subsystem: "host",
 		Name:      "disk_usage_percent",
 		Help:      "Current disk usage percentage",
+	})
+
+	// Redis 健康状态指标
+	promRedisHealth = promauto.NewGauge(prometheus.GaugeOpts{
+		Namespace: "system",
+		Subsystem: "redis",
+		Name:      "health",
+		Help:      "Status of Redis connection (0=unhealthy, 1=healthy)",
 	})
 )
 
@@ -89,6 +98,64 @@ func Initialize(cfg *configPkg.Config) error {
 // GetCollector 获取指标收集器实例
 func GetCollector() *Collector {
 	return collector
+}
+
+// CheckRedisHealth 检查Redis健康状态
+func CheckRedisHealth() map[string]any {
+	result := map[string]any{
+		"status":  "ok",
+		"message": "Redis connection is healthy",
+	}
+
+	// 检查是否启用Redis
+	cfg := GetConfig()
+	if cfg == nil || !cfg.Monitoring.Redis.Enabled {
+		result["status"] = "disabled"
+		result["message"] = "Redis is disabled"
+		return result
+	}
+
+	// 检查Redis客户端是否初始化
+	if redisClient == nil {
+		result["status"] = "error"
+		result["message"] = "Redis client not initialized"
+		return result
+	}
+
+	// 测试Redis连接
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	_, err := redisClient.Ping(ctx).Result()
+	if err != nil {
+		log.Printf("Redis ping failed: %v", err)
+		result["status"] = "error"
+		result["message"] = "Redis connection failed"
+		result["error"] = err.Error()
+		return result
+	}
+
+	return result
+}
+
+// redisHealthHandler 处理 Redis 健康检查请求
+func redisHealthHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		utils.Fail(w, http.StatusMethodNotAllowed, utils.ErrMethodNotAllowed, utils.ErrorMessage(utils.ErrMethodNotAllowed))
+		return
+	}
+
+	healthStatus := CheckRedisHealth()
+
+	// 更新 Prometheus 指标
+	if healthStatus["status"] == "ok" {
+		promRedisHealth.Set(1)
+	} else {
+		promRedisHealth.Set(0)
+	}
+
+	// 返回 JSON 响应
+	utils.OK(w, healthStatus)
 }
 
 // Close 关闭监控模块
