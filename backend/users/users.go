@@ -3,6 +3,7 @@ package users
 
 import (
 	"errors"
+	"fmt"
 	"math"
 	"net/http"
 	"strconv"
@@ -18,9 +19,32 @@ import (
 // RegisterRoutes 注册用户管理路由
 func RegisterRoutes(router *gin.Engine) {
 	router.GET(api.UsersListPath, listHandler)
-	router.GET(api.UsersPagedPath, usersPagedHandler)
+	router.GET(api.UsersPagePath, usersPagedHandler)
 	router.POST(api.UsersAddPath, addHandler)
 	router.DELETE(api.UsersRemovePath, removeHandler)
+}
+
+// Initialize 初始化用户服务
+func Initialize() error {
+	// 确保数据库表已创建
+	if err := ensureTables(database.DB); err != nil {
+		return fmt.Errorf("failed to ensure users table exist: %w", err)
+	}
+	return nil
+}
+
+// ensureTables 确保用户相关的表已创建
+func ensureTables(db *gorm.DB) error {
+	if db == nil {
+		return fmt.Errorf("database connection is nil")
+	}
+
+	// 自动迁移用户相关表
+	if err := db.AutoMigrate(&User{}); err != nil {
+		return fmt.Errorf("failed to auto migrate users table: %w", err)
+	}
+
+	return nil
 }
 
 // listHandler 获取用户列表

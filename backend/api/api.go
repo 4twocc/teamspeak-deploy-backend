@@ -28,7 +28,7 @@ const (
 	// 用户列表路径
 	UsersListPath = UsersBasePath + "/list"
 	// 用户分页列表路径
-	UsersPagedPath = UsersBasePath + "/paged"
+	UsersPagePath = UsersBasePath + "/page"
 	// 用户添加路径
 	UsersAddPath = UsersBasePath + "/add"
 	// 用户删除路径

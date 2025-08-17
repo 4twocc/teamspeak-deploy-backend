@@ -2,29 +2,15 @@ package instance
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 
 	"teamspeak-one-click-deploy/database"
 	"teamspeak-one-click-deploy/utils"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
-
-var (
-	instanceService *Service
-	alertManager    *AlertManager
-)
-
-// Initialize 初始化实例服务
-func Initialize() error {
-	// 初始化告警管理器
-	alertManager = NewAlertManager(database.DB)
-
-	// 初始化实例服务
-	instanceService = NewService(database.DB, alertManager)
-
-	return nil
-}
 
 func RegisterRoutes(router *gin.Engine) {
 	// 注册实例管理路由
@@ -38,6 +24,41 @@ func RegisterRoutes(router *gin.Engine) {
 	router.POST("/api/v1/instances/:id/restart", restartInstanceHandler)
 	router.GET("/api/v1/instances/:id/logs", getInstanceLogsHandler)
 	router.GET("/api/v1/instances/:id/resources", getInstanceResourcesHandler)
+}
+
+var (
+	instanceService *Service
+	alertManager    *AlertManager
+)
+
+// Initialize 初始化实例服务
+func Initialize() error {
+	// 初始化告警管理器
+	alertManager = NewAlertManager(database.DB)
+
+	// 确保数据库表已创建
+	if err := ensureTables(database.DB); err != nil {
+		return fmt.Errorf("failed to ensure instance tables exist: %w", err)
+	}
+
+	// 初始化实例服务
+	instanceService = NewService(database.DB, alertManager)
+
+	return nil
+}
+
+// ensureTables 确保实例相关的表已创建
+func ensureTables(db *gorm.DB) error {
+	if db == nil {
+		return fmt.Errorf("database connection is nil")
+	}
+
+	// 自动迁移实例相关表
+	if err := db.AutoMigrate(&Instance{}, &InstanceLog{}); err != nil {
+		return fmt.Errorf("failed to auto migrate instance tables: %w", err)
+	}
+
+	return nil
 }
 
 func listInstancesHandler(c *gin.Context) {

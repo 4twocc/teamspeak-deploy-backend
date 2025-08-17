@@ -19,6 +19,15 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
+// RegisterRoutes 注册监控路由
+func RegisterRoutes(mux *http.ServeMux) {
+	mux.HandleFunc("/api/v1/monitor/system", systemMonitorHandler)
+	mux.HandleFunc("/api/v1/monitor/business", businessMonitorHandler)
+	mux.HandleFunc("/api/v1/monitor/history", historyMonitorHandler)
+	mux.HandleFunc("/api/v1/monitor/status", statusHandler)
+	mux.Handle("/metrics", metricsHandler())
+}
+
 var (
 	collector     *Collector
 	collectorOnce sync.Once
@@ -304,15 +313,6 @@ func statusHandler(w http.ResponseWriter, r *http.Request) {
 // metricsHandler 处理 Prometheus 指标请求
 func metricsHandler() http.Handler {
 	return promhttp.Handler()
-}
-
-// RegisterRoutes 注册监控路由
-func RegisterRoutes(mux *http.ServeMux) {
-	mux.HandleFunc("/api/v1/monitor/system", systemMonitorHandler)
-	mux.HandleFunc("/api/v1/monitor/business", businessMonitorHandler)
-	mux.HandleFunc("/api/v1/monitor/history", historyMonitorHandler)
-	mux.HandleFunc("/api/v1/monitor/status", statusHandler)
-	mux.Handle("/metrics", metricsHandler())
 }
 
 // Run 运行监控服务

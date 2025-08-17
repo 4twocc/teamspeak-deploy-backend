@@ -9,6 +9,7 @@ import (
 	"teamspeak-one-click-deploy/instance"
 	"teamspeak-one-click-deploy/monitor"
 	"teamspeak-one-click-deploy/server"
+	"teamspeak-one-click-deploy/users"
 )
 
 func main() {
@@ -29,6 +30,11 @@ func main() {
 			log.Printf("Error closing database connection: %v", err)
 		}
 	}()
+
+	// 初始化用户服务
+	if err := users.Initialize(); err != nil {
+		log.Fatalf("Failed to initialize user service: %v", err)
+	}
 
 	// 初始化实例服务
 	if err := instance.Initialize(); err != nil {
