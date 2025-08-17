@@ -39,6 +39,7 @@ database:
   auto_migrate: true
 
 monitoring:
+  addr: ":9090"
   collect_interval: 1h
   alert:
     enabled: true

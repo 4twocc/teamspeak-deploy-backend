@@ -67,6 +67,7 @@ type DatabaseConfig struct {
 
 // MonitoringConfig 监控配置
 type MonitoringConfig struct {
+	Addr                  string        `mapstructure:"addr"`
 	CollectInterval       time.Duration `mapstructure:"collect_interval"`
 	MinCollectionInterval time.Duration `mapstructure:"min_collection_interval"`
 	Alert                 AlertConfig   `mapstructure:"alert"`
@@ -266,6 +267,7 @@ func DefaultConfig() *Config {
 			AutoMigrate:     true,
 		},
 		Monitoring: MonitoringConfig{
+			Addr:            ":9090",
 			CollectInterval: 60 * time.Second,
 			Alert: AlertConfig{
 				Enabled:       true,

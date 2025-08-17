@@ -327,7 +327,7 @@ func Run(cfg *configPkg.Config) error {
 	RegisterRoutes(mux)
 
 	server := &http.Server{
-		Addr:    ":9090", // 监控服务端口
+		Addr:    cfg.Monitoring.Addr, // 使用配置中的地址
 		Handler: mux,
 	}
 

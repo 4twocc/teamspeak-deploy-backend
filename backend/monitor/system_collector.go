@@ -238,11 +238,3 @@ func checkSystemAlerts(metrics *SystemMetrics, cfg *configPkg.Config) {
 		metrics.Alert = strings.Join(alerts, "; ")
 	}
 }
-
-// min 返回两个 float64 中的最小值
-func min(a, b float64) float64 {
-	if a < b {
-		return a
-	}
-	return b
-}

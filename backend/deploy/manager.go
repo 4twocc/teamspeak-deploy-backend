@@ -82,7 +82,7 @@ func (dm *DeploymentManager) GetContainerStatus() (map[string]any, error) {
 
 	return map[string]any{
 		"docker_available": true,
-		"container_info":   string(output),
+		"container_info":   output,
 	}, nil
 }
 

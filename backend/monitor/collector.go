@@ -169,8 +169,6 @@ type Collector struct {
 	collectionDelay time.Duration
 
 	// 冷却期控制键
-	systemCooldownKey   string
-	businessCooldownKey string
 }
 
 // CollectorOption 收集器配置选项

@@ -46,10 +46,15 @@ func main() {
 		log.Fatalf("Failed to initialize deployment module: %v", err)
 	}
 
-	// 加载监控模块配置
-	if err := monitor.LoadConfigFromFile("config.yaml"); err != nil {
-		log.Printf("WARNING: failed to load monitoring config: %v (using defaults)", err)
-	}
+	// 更新监控模块配置（使用已加载的配置）
+	monitor.UpdateConfig(cfg)
+
+	// 启动监控服务（在单独的 goroutine 中启动以避免阻塞主线程）
+	go func() {
+		if err := monitor.Run(cfg); err != nil {
+			log.Printf("Failed to start monitoring service: %v", err)
+		}
+	}()
 
 	// 创建并配置路由引擎
 	routerEngine, err := server.SetupRouter(cfg)
