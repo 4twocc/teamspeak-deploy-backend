@@ -5,62 +5,129 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
 	"sync"
+	"syscall"
 	"time"
 
-	"teamspeak-one-click-deploy/database"
+	configPkg "teamspeak-one-click-deploy/config"
 	"teamspeak-one-click-deploy/utils"
 
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/shirou/gopsutil/v3/cpu"
-	"golang.org/x/time/rate"
 )
 
-// 告警级别
-const (
-	AlertLevelInfo     = "info"
-	AlertLevelWarning  = "warning"
-	AlertLevelError    = "error"
-	AlertLevelCritical = "critical"
+var (
+	collector     *Collector
+	collectorOnce sync.Once
+
+	// Prometheus 指标
+	promSystemCPU = promauto.NewGauge(prometheus.GaugeOpts{
+		Namespace: "system",
+		Subsystem: "host",
+		Name:      "cpu_percent",
+		Help:      "Current CPU usage percentage",
+	})
+
+	promSystemMemoryUsage = promauto.NewGauge(prometheus.GaugeOpts{
+		Namespace: "system",
+		Subsystem: "host",
+		Name:      "memory_usage_percent",
+		Help:      "Current memory usage percentage",
+	})
+
+	promSystemDiskUsage = promauto.NewGauge(prometheus.GaugeOpts{
+		Namespace: "system",
+		Subsystem: "host",
+		Name:      "disk_usage_percent",
+		Help:      "Current disk usage percentage",
+	})
 )
 
-// Alert 表示一个告警
-type Alert struct {
-	Level     string    `json:"level"`     // Alert level (e.g., "critical", "warning", "info")
-	Message   string    `json:"message"`   // Alert message
-	Timestamp time.Time `json:"timestamp"` // When the alert was triggered
-	Source    string    `json:"source"`    // Source of the alert (e.g., "system", "business")
+// Initialize 初始化监控模块
+func Initialize(cfg *configPkg.Config) error {
+	// 更新监控配置
+	UpdateConfig(cfg)
+
+	// 初始化Redis缓存
+	if err := InitRedisCache(); err != nil {
+		log.Printf("Warning: failed to initialize Redis cache: %v", err)
+	}
+
+	// 创建指标收集器
+	collector = NewCollector(
+		WithMaxHistorySize(cfg.Monitoring.Performance.MaxHistorySize),
+		WithCollectionDelay(cfg.Monitoring.Performance.CollectionDelay),
+		WithSystemSampleRate(cfg.Monitoring.Performance.SystemSampleRate),
+		WithBusinessSampleRate(cfg.Monitoring.Performance.BusinessSampleRate),
+		WithMinCollectionInterval(cfg.Monitoring.MinCollectionInterval),
+	)
+
+	// 启动指标收集器
+	if err := collector.Start(); err != nil {
+		return fmt.Errorf("failed to start collector: %w", err)
+	}
+
+	// 启动处理协程
+	go handleMetrics()
+
+	log.Println("Monitoring module initialized successfully")
+	return nil
 }
 
-// 网络统计缓存
-var (
-	prevCPUTimes cpu.TimesStat
-	hasPrevCPU   bool
-	cpuMutex     sync.Mutex
+// GetCollector 获取指标收集器实例
+func GetCollector() *Collector {
+	return collector
+}
 
-	// 网络统计相关变量
-	lastNetwork struct {
-		rxBytes uint64
-		txBytes uint64
-		time    time.Time
+// Close 关闭监控模块
+func Close() error {
+	if collector != nil {
+		collector.Stop()
 	}
-	networkMutex sync.Mutex
-)
 
-// 全局收集器实例
-var (
-	collector *Collector
-	once      sync.Once
-)
+	CloseRedisCache()
+	return nil
+}
 
-// RegisterRoutes sets up the HTTP routes for monitoring endpoints
-func RegisterRoutes(mux *http.ServeMux) {
-	mux.HandleFunc("/api/monitor/system", systemMonitorHandler)
-	mux.HandleFunc("/api/monitor/business", businessMonitorHandler)
-	mux.HandleFunc("/api/monitor/stats", statsHandler)   // 新增统计接口
-	mux.HandleFunc("/api/monitor/health", healthHandler) // 新增健康检查接口
-	// Prometheus 指标
-	mux.Handle("/metrics", promhttp.Handler())
+// handleMetrics 处理收集到的指标
+func handleMetrics() {
+	if collector == nil {
+		return
+	}
+
+	systemChan := collector.GetSystemMetricsChan()
+	businessChan := collector.GetBusinessMetricsChan()
+
+	for {
+		select {
+		case metrics := <-systemChan:
+			if metrics != nil {
+				// 更新 Prometheus 指标
+				promSystemCPU.Set(metrics.CPU)
+				promSystemMemoryUsage.Set(metrics.Memory.Usage)
+				promSystemDiskUsage.Set(metrics.Disk.Usage)
+
+				// 记录日志
+				if metrics.Alert != "" {
+					log.Printf("SYSTEM ALERT: %s", metrics.Alert)
+				}
+			}
+
+		case metrics := <-businessChan:
+			if metrics != nil {
+				// 记录日志
+				if metrics.Alert != "" {
+					log.Printf("BUSINESS ALERT: %s", metrics.Alert)
+				}
+			}
+
+		case <-context.Background().Done():
+			return
+		}
+	}
 }
 
 // CollectBusinessMetrics 收集业务指标
@@ -70,7 +137,12 @@ func CollectBusinessMetrics() (*BusinessMetrics, error) {
 	}
 
 	// 初始化 TeamSpeak 客户端
-	tsClient, err := NewTeamSpeakClient(GetConfig().TeamSpeakConfig)
+	cfg := GetConfig()
+	if cfg == nil {
+		return nil, fmt.Errorf("monitor config not initialized")
+	}
+
+	tsClient, err := NewTeamSpeakClient(cfg.Teamspeak)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create TeamSpeak client: %w", err)
 	}
@@ -90,7 +162,7 @@ func CollectBusinessMetrics() (*BusinessMetrics, error) {
 	metrics.VoiceQuality = max(serverInfo.VoiceQuality/100.0, 0.7)
 
 	// 检查告警
-	checkBusinessAlerts(metrics)
+	checkBusinessAlerts(metrics, cfg)
 
 	return metrics, nil
 }
@@ -111,7 +183,7 @@ func systemMonitorHandler(w http.ResponseWriter, r *http.Request) {
 
 	// 尝试从缓存获取系统指标
 	var metrics *SystemMetrics
-	if GetConfig().RedisConfig.Enabled {
+	if cfg := GetConfig(); cfg != nil && cfg.Monitoring.Redis.Enabled {
 		cachedMetrics, err := getCachedSystemMetrics()
 		if err != nil {
 			log.Printf("Failed to get cached system metrics: %v", err)
@@ -150,7 +222,7 @@ func businessMonitorHandler(w http.ResponseWriter, r *http.Request) {
 
 	// 尝试从缓存获取业务指标
 	var metrics *BusinessMetrics
-	if GetConfig().RedisConfig.Enabled {
+	if cfg := GetConfig(); cfg != nil && cfg.Monitoring.Redis.Enabled {
 		cachedMetrics, err := getCachedBusinessMetrics()
 		if err != nil {
 			log.Printf("Failed to get cached business metrics: %v", err)
@@ -173,35 +245,10 @@ func businessMonitorHandler(w http.ResponseWriter, r *http.Request) {
 	utils.OK(w, metrics)
 }
 
-// 获取监控统计数据
-func statsHandler(w http.ResponseWriter, r *http.Request) {
+// historyMonitorHandler 处理历史指标请求
+func historyMonitorHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		utils.Fail(w, http.StatusMethodNotAllowed, utils.ErrMethodNotAllowed, utils.ErrorMessage(utils.ErrMethodNotAllowed))
-		return
-	}
-
-	// 添加限流
-	if !rateLimiter.Allow() {
-		utils.Fail(w, http.StatusTooManyRequests, utils.ErrTooManyRequests, utils.ErrorMessage(utils.ErrTooManyRequests))
-		return
-	}
-
-	// 获取时间范围参数
-	durationStr := r.URL.Query().Get("duration")
-	if durationStr == "" {
-		durationStr = "1h" // 默认1小时
-	}
-
-	duration, err := time.ParseDuration(durationStr)
-	if err != nil {
-		utils.Fail(w, http.StatusBadRequest, utils.ErrInvalidDuration, utils.ErrorMessage(utils.ErrInvalidDuration))
-		return
-	}
-
-	// 验证时间范围
-	maxDuration := 24 * time.Hour
-	if duration > maxDuration {
-		utils.Fail(w, http.StatusBadRequest, utils.ErrDurationTooLong, fmt.Sprintf("%s: %s", utils.ErrorMessage(utils.ErrDurationTooLong), maxDuration))
 		return
 	}
 
@@ -212,294 +259,107 @@ func statsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 创建带有超时的上下文
-	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
-	defer cancel()
-
-	// 使用通道来收集结果
-	type result struct {
-		system   *SystemMetrics
-		business *BusinessMetrics
-		err      error
+	// 获取查询参数
+	metricType := r.URL.Query().Get("type")
+	if metricType == "" {
+		metricType = "system" // 默认返回系统指标
 	}
 
-	resultCh := make(chan result, 1)
-
-	// 在goroutine中获取统计数据
-	go func() {
-		systemStats := collector.GetSystemStats(duration)
-		businessStats := collector.GetBusinessStats(duration)
-		resultCh <- result{system: systemStats, business: businessStats}
-	}()
-
-	// 等待结果或超时
-	select {
-	case <-ctx.Done():
-		utils.Fail(w, http.StatusRequestTimeout, utils.ErrRequestTimeout, utils.ErrorMessage(utils.ErrRequestTimeout))
+	var history any
+	switch metricType {
+	case "system":
+		history = collector.GetSystemMetricsHistory()
+	case "business":
+		history = collector.GetBusinessMetricsHistory()
+	default:
+		utils.Fail(w, http.StatusBadRequest, utils.ErrInvalidRequest, "Invalid metric type")
 		return
-	case res := <-resultCh:
-		if res.err != nil {
-			utils.Fail(w, http.StatusInternalServerError, utils.ErrCollectStatsFailed, utils.ErrorMessage(utils.ErrCollectStatsFailed))
-			return
-		}
-		utils.OK(w, map[string]any{
-			"system":   res.system,
-			"business": res.business,
-		})
 	}
+
+	// 返回 JSON 响应
+	utils.OK(w, history)
 }
 
-// 健康检查，验证数据库连接和 TeamSpeak 连接
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-	// 添加恢复机制
-	defer func() {
-		if r := recover(); r != nil {
-			log.Printf("Recovered from panic in health check: %v", r)
-			utils.Fail(w, http.StatusInternalServerError, utils.ErrInternalServer, "Internal server error during health check")
-		}
-	}()
-
+// statusHandler 处理状态请求
+func statusHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		utils.Fail(w, http.StatusMethodNotAllowed, utils.ErrMethodNotAllowed, "Method not allowed")
+		utils.Fail(w, http.StatusMethodNotAllowed, utils.ErrMethodNotAllowed, utils.ErrorMessage(utils.ErrMethodNotAllowed))
 		return
 	}
 
-	if !rateLimiter.Allow() {
-		utils.Fail(w, http.StatusTooManyRequests, utils.ErrTooManyRequests, "Too many requests")
+	// 获取收集器实例
+	collector := GetCollector()
+	if collector == nil {
+		utils.Fail(w, http.StatusServiceUnavailable, utils.ErrCollectorInit, utils.ErrorMessage(utils.ErrCollectorInit))
 		return
 	}
 
-	// 检查数据库连接
-	dbStatus := checkDatabaseHealth()
+	// 获取收集器状态
+	status := collector.GetStatus()
 
-	// 检查 TeamSpeak 连接
-	tsStatus := checkTeamSpeakHealth()
-
-	// 检查 Redis 连接
-	redisStatus := checkRedisHealth()
-
-	// 组合状态
-	status := map[string]any{
-		"status":    "ok",
-		"timestamp": time.Now().Format(time.RFC3339),
-		"database":  dbStatus,
-		"teamspeak": tsStatus,
-		"redis":     redisStatus,
-	}
-
-	// 如果有任何服务不可用，返回 503
-	if dbStatus["status"] != "ok" || tsStatus["status"] != "ok" || redisStatus["status"] != "ok" {
-		status["status"] = "error"
-		log.Printf("Health check failed - Database: %v, TeamSpeak: %v, Redis: %v",
-			dbStatus["message"], tsStatus["message"], redisStatus["message"])
-		utils.WriteJSON(w, http.StatusServiceUnavailable, utils.ErrServiceUnavailable, "Service Unavailable", status)
-		return
-	}
-
-	utils.WriteJSON(w, http.StatusOK, 0, "ok", status)
+	// 返回 JSON 响应
+	utils.OK(w, status)
 }
 
-// 检查数据库健康状态
-func checkDatabaseHealth() map[string]any {
-	result := map[string]any{
-		"status":  "ok",
-		"message": "Database connection is healthy",
-	}
-
-	// 检查数据库连接是否初始化
-	if database.DB == nil {
-		err := fmt.Errorf("database connection is not initialized")
-		log.Printf("Database error: %v", err)
-		result["status"] = "error"
-		result["message"] = "Database not initialized"
-		result["error"] = err.Error()
-		return result
-	}
-
-	// 获取底层 sql.DB 连接
-	sqlDB, err := database.DB.DB()
-	if err != nil {
-		log.Printf("Failed to get database instance: %v", err)
-		result["status"] = "error"
-		result["message"] = "Failed to get database instance"
-		result["error"] = err.Error()
-		return result
-	}
-
-	// 设置超时上下文
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	// 执行带超时的 Ping 测试
-	if err := sqlDB.PingContext(ctx); err != nil {
-		log.Printf("Database ping failed: %v", err)
-		result["status"] = "error"
-		result["message"] = "Database connection failed"
-		result["error"] = err.Error()
-		return result
-	}
-
-	// 检查 users 表是否存在
-	var tableExists bool
-	err = database.DB.WithContext(ctx).Raw(
-		"SELECT EXISTS (SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?)",
-		"users",
-	).Scan(&tableExists).Error
-
-	if err != nil {
-		log.Printf("Failed to check users table: %v", err)
-		result["status"] = "warning"
-		result["message"] = "Unable to verify users table"
-		result["error"] = err.Error()
-	} else if !tableExists {
-		log.Printf("Users table does not exist")
-		result["status"] = "warning"
-		result["message"] = "Users table does not exist"
-	}
-
-	return result
+// metricsHandler 处理 Prometheus 指标请求
+func metricsHandler() http.Handler {
+	return promhttp.Handler()
 }
 
-// 检查 TeamSpeak 连接健康状态
-func checkTeamSpeakHealth() map[string]any {
-	result := map[string]any{
-		"status":  "ok",
-		"message": "TeamSpeak connection is healthy",
+// RegisterRoutes 注册监控路由
+func RegisterRoutes(mux *http.ServeMux) {
+	mux.HandleFunc("/api/v1/monitor/system", systemMonitorHandler)
+	mux.HandleFunc("/api/v1/monitor/business", businessMonitorHandler)
+	mux.HandleFunc("/api/v1/monitor/history", historyMonitorHandler)
+	mux.HandleFunc("/api/v1/monitor/status", statusHandler)
+	mux.Handle("/metrics", metricsHandler())
+}
+
+// Run 运行监控服务
+func Run(cfg *configPkg.Config) error {
+	// 初始化监控模块
+	if err := Initialize(cfg); err != nil {
+		return fmt.Errorf("failed to initialize monitoring module: %w", err)
 	}
 
-	// 获取配置
-	cfg := GetConfig()
-	if cfg == nil {
-		err := fmt.Errorf("failed to get configuration")
-		log.Printf("TeamSpeak config error: %v", err)
-		result["status"] = "error"
-		result["message"] = "Configuration error"
-		result["error"] = err.Error()
-		return result
+	// 创建 HTTP 服务器
+	mux := http.NewServeMux()
+	RegisterRoutes(mux)
+
+	server := &http.Server{
+		Addr:    ":9090", // 监控服务端口
+		Handler: mux,
 	}
 
-	// 创建临时客户端以验证连接与上下文
-	tsClient, err := NewTeamSpeakClient(cfg.TeamSpeakConfig)
-	if err != nil {
-		log.Printf("Failed to create TeamSpeak client: %v", err)
-		result["status"] = "error"
-		result["message"] = "Failed to create TeamSpeak client"
-		result["error"] = err.Error()
-		return result
-	}
-	defer func() {
-		if err := tsClient.Close(); err != nil {
-			log.Printf("Error closing TeamSpeak client: %v", err)
-		}
-	}()
+	// 设置信号处理
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 
-	// 测试连接（带超时）
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	done := make(chan struct{})
-	var versionErr error
-
+	// 在 goroutine 中启动服务器
 	go func() {
-		_, versionErr = tsClient.client.Version()
-		close(done)
+		log.Println("Monitoring server starting on :9090")
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Printf("Monitoring server error: %v", err)
+		}
 	}()
 
-	select {
-	case <-ctx.Done():
-		err := fmt.Errorf("connection timeout: %v", ctx.Err())
-		log.Printf("TeamSpeak connection timeout: %v", err)
-		result["status"] = "error"
-		result["message"] = "Connection to TeamSpeak server timed out"
-		result["error"] = err.Error()
-	case <-done:
-		if versionErr != nil {
-			log.Printf("Failed to get TeamSpeak version: %v", versionErr)
-			result["status"] = "error"
-			result["message"] = "Failed to communicate with TeamSpeak server"
-			result["error"] = versionErr.Error()
-		}
+	// 等待中断信号
+	<-sigChan
+	log.Println("Shutting down monitoring server...")
+
+	// 关闭监控模块
+	if err := Close(); err != nil {
+		log.Printf("Error closing monitoring module: %v", err)
 	}
 
-	return result
-}
-
-// 检查 Redis 健康状态
-func checkRedisHealth() map[string]any {
-	result := map[string]any{
-		"status":  "ok",
-		"message": "Redis connection is healthy",
-	}
-
-	// 检查是否启用Redis
-	cfg := GetConfig()
-	if cfg == nil || !cfg.RedisConfig.Enabled {
-		result["status"] = "disabled"
-		result["message"] = "Redis is disabled"
-		return result
-	}
-
-	// 检查Redis客户端是否初始化
-	if redisClient == nil {
-		result["status"] = "error"
-		result["message"] = "Redis client not initialized"
-		return result
-	}
-
-	// 测试Redis连接
+	// 关闭 HTTP 服务器
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	_, err := redisClient.Ping(ctx).Result()
-	if err != nil {
-		log.Printf("Redis ping failed: %v", err)
-		result["status"] = "error"
-		result["message"] = "Redis connection failed"
-		result["error"] = err.Error()
-		return result
+	if err := server.Shutdown(ctx); err != nil {
+		return fmt.Errorf("failed to shutdown monitoring server: %w", err)
 	}
 
-	return result
-}
-
-// 全局速率限制器
-var rateLimiter = rate.NewLimiter(rate.Every(2*time.Second), 5) // 降低请求频率限制
-
-// 在 init 函数中启动收集器
-func init() {
-	once.Do(func() {
-		// 初始化Redis缓存
-		if err := InitRedisCache(); err != nil {
-			log.Printf("Failed to initialize Redis cache: %v", err)
-		}
-
-		// 获取性能配置
-		perfConfig := GetConfig().PerformanceConfig
-
-		// 使用配置文件中的参数创建收集器
-		collector = NewCollector(
-			WithMaxHistorySize(perfConfig.MaxHistorySize),
-			WithMinCollectionInterval(perfConfig.MinCollectionInterval),
-			WithSystemSampleRate(perfConfig.SystemSampleRate),
-			WithBusinessSampleRate(perfConfig.BusinessSampleRate),
-			WithCollectionDelay(perfConfig.CollectionDelay),
-		)
-		if err := collector.Start(); err != nil {
-			log.Printf("Failed to start metrics collector: %v", err)
-		}
-	})
-}
-
-// 在 main 函数退出时停止收集器和Redis缓存
-func Cleanup() {
-	if collector != nil {
-		collector.Stop()
-	}
-
-	CloseRedisCache()
-}
-
-// GetCollector 获取收集器实例
-func GetCollector() *Collector {
-	return collector
+	log.Println("Monitoring server stopped")
+	return nil
 }

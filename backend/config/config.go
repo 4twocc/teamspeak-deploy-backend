@@ -70,6 +70,47 @@ type MonitoringConfig struct {
 	CollectInterval       time.Duration `mapstructure:"collect_interval"`
 	MinCollectionInterval time.Duration `mapstructure:"min_collection_interval"`
 	Alert                 AlertConfig   `mapstructure:"alert"`
+	System                SystemConfig  `mapstructure:"system"`
+	Performance           PerformanceConfig `mapstructure:"performance"`
+	Redis                 RedisConfig   `mapstructure:"redis"`
+}
+
+// SystemConfig 系统监控配置
+type SystemConfig struct {
+	// 监控的挂载点
+	MountPoints []string `mapstructure:"mount_points"`
+
+	// 网络接口
+	NetworkInterfaces []string `mapstructure:"network_interfaces"`
+}
+
+// PerformanceConfig 性能优化配置
+type PerformanceConfig struct {
+	// 系统指标采样率 (1/N 的频率收集)
+	SystemSampleRate int `mapstructure:"system_sample_rate"`
+	
+	// 业务指标采样率 (1/N 的频率收集)
+	BusinessSampleRate int `mapstructure:"business_sample_rate"`
+	
+	// 历史记录最大数量
+	MaxHistorySize int `mapstructure:"max_history_size"`
+	
+	// 收集后延迟时间
+	CollectionDelay time.Duration `mapstructure:"collection_delay"`
+	
+	// 函数间延迟时间
+	InterFuncDelay time.Duration `mapstructure:"inter_func_delay"`
+	
+	// 函数内延迟时间
+	InnerFuncDelay time.Duration `mapstructure:"inner_func_delay"`
+}
+
+// RedisConfig Redis配置
+type RedisConfig struct {
+	Enabled  bool   `mapstructure:"enabled"`
+	Addr     string `mapstructure:"addr"`
+	Password string `mapstructure:"password"`
+	DB       int    `mapstructure:"db"`
 }
 
 // AlertConfig 告警配置
@@ -235,6 +276,24 @@ func DefaultConfig() *Config {
 					Disk:         80,
 					VoiceQuality: 0.7,
 				},
+			},
+			System: SystemConfig{
+				MountPoints:       []string{"/"},
+				NetworkInterfaces: []string{"eth0"},
+			},
+			Performance: PerformanceConfig{
+				SystemSampleRate:      3,
+				BusinessSampleRate:    4,
+				MaxHistorySize:        50,
+				CollectionDelay:       500 * time.Millisecond,
+				InterFuncDelay:        50 * time.Millisecond,
+				InnerFuncDelay:        20 * time.Millisecond,
+			},
+			Redis: RedisConfig{
+				Enabled:  false,
+				Addr:     "localhost:6379",
+				Password: "",
+				DB:       0,
 			},
 		},
 		Teamspeak: TeamspeakConfig{

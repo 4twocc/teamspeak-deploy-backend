@@ -7,9 +7,10 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"slices"
 	"sync"
 	"time"
+
+	configPkg "teamspeak-one-click-deploy/config"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
@@ -56,6 +57,65 @@ var (
 		Help:      "Total number of successful TeamSpeak reconnects",
 	})
 )
+
+// AlertLevel 告警级别
+type AlertLevel string
+
+const (
+	AlertLevelInfo     AlertLevel = "info"
+	AlertLevelWarning  AlertLevel = "warning"
+	AlertLevelError    AlertLevel = "error"
+	AlertLevelCritical AlertLevel = "critical"
+)
+
+// Alert 表示一个告警
+type Alert struct {
+	Level     AlertLevel `json:"level"`     // Alert level (e.g., "critical", "warning", "info")
+	Message   string     `json:"message"`   // Alert message
+	Timestamp time.Time  `json:"timestamp"` // When the alert was triggered
+	Source    string     `json:"source"`    // Source of the alert (e.g., "system", "business")
+}
+
+// SystemMetrics 表示系统级指标
+type SystemMetrics struct {
+	Timestamp time.Time `json:"timestamp"` // 采集时间
+	CPU       float64   `json:"cpu"`       // CPU 使用率（百分比）
+	Memory    struct {
+		Total     uint64  `json:"total"`     // 总内存（字节）
+		Used      uint64  `json:"used"`      // 已用内存（字节）
+		Available uint64  `json:"available"` // 可用内存（字节）
+		Usage     float64 `json:"usage"`     // 内存使用率（百分比）
+	} `json:"memory"`
+	Disk struct {
+		Total uint64  `json:"total"` // 总磁盘空间（字节）
+		Used  uint64  `json:"used"`  // 已用磁盘空间（字节）
+		Free  uint64  `json:"free"`  // 可用磁盘空间（字节）
+		Usage float64 `json:"usage"` // 磁盘使用率（百分比）
+	} `json:"disk"`
+	Network struct {
+		RxBytes uint64  `json:"rx_bytes"` // 接收字节数
+		TxBytes uint64  `json:"tx_bytes"` // 发送字节数
+		RxRate  float64 `json:"rx_rate"`  // 接收速率（字节/秒）
+		TxRate  float64 `json:"tx_rate"`  // 发送速率（字节/秒）
+	} `json:"network"`
+	Uptime uint64 `json:"uptime"` // 系统运行时间（秒）
+	Load   struct {
+		Load1  float64 `json:"load1"`  // 1分钟平均负载
+		Load5  float64 `json:"load5"`  // 5分钟平均负载
+		Load15 float64 `json:"load15"` // 15分钟平均负载
+	} `json:"load"`
+	Alert string `json:"alert,omitempty"` // 告警信息
+}
+
+// BusinessMetrics 表示业务指标
+type BusinessMetrics struct {
+	Timestamp    time.Time     `json:"timestamp"`       // 时间戳
+	OnlineUsers  int           `json:"onlineUsers"`     // 在线用户数
+	ChannelCount int           `json:"channelCount"`    // 频道数量
+	Uptime       time.Duration `json:"uptime"`          // 服务器运行时间
+	VoiceQuality float64       `json:"voiceQuality"`    // 语音质量 (0-1)
+	Alert        string        `json:"alert,omitempty"` // 告警信息
+}
 
 // Collector 指标收集器
 type Collector struct {
@@ -123,27 +183,6 @@ func WithMaxHistorySize(size int) CollectorOption {
 	}
 }
 
-// WithMinCollectionInterval 设置最小收集间隔
-func WithMinCollectionInterval(interval time.Duration) CollectorOption {
-	return func(c *Collector) {
-		c.minCollectionInterval = interval
-	}
-}
-
-// WithSystemSampleRate 设置系统指标采样率 (1/n 的频率收集)
-func WithSystemSampleRate(rate int) CollectorOption {
-	return func(c *Collector) {
-		c.systemSampleRate = rate
-	}
-}
-
-// WithBusinessSampleRate 设置业务指标采样率 (1/n 的频率收集)
-func WithBusinessSampleRate(rate int) CollectorOption {
-	return func(c *Collector) {
-		c.businessSampleRate = rate
-	}
-}
-
 // WithCollectionDelay 设置收集后延迟时间
 func WithCollectionDelay(delay time.Duration) CollectorOption {
 	return func(c *Collector) {
@@ -151,494 +190,99 @@ func WithCollectionDelay(delay time.Duration) CollectorOption {
 	}
 }
 
+// WithSystemSampleRate 设置系统指标采样率
+func WithSystemSampleRate(rate int) CollectorOption {
+	return func(c *Collector) {
+		c.systemSampleRate = rate
+	}
+}
+
+// WithBusinessSampleRate 设置业务指标采样率
+func WithBusinessSampleRate(rate int) CollectorOption {
+	return func(c *Collector) {
+		c.businessSampleRate = rate
+	}
+}
+
+// WithMinCollectionInterval 设置最小收集间隔
+func WithMinCollectionInterval(interval time.Duration) CollectorOption {
+	return func(c *Collector) {
+		c.minCollectionInterval = interval
+	}
+}
+
 // NewCollector 创建新的指标收集器
 func NewCollector(opts ...CollectorOption) *Collector {
-	// 获取配置
-	config := GetConfig()
-
-	ctx, cancel := context.WithCancel(context.Background())
-	collector := &Collector{
-		ctx:                    ctx,
-		cancel:                 cancel,
-		systemMetricsChan:      make(chan *SystemMetrics, 100),
-		businessMetricsChan:    make(chan *BusinessMetrics, 100),
-		alertChan:              make(chan *Alert, 1000),
-		systemMetricsHistory:   make([]*SystemMetrics, 0),
-		businessMetricsHistory: make([]*BusinessMetrics, 0),
-		maxHistorySize:         config.PerformanceConfig.MaxHistorySize,
-		startTime:              time.Now(),
-		minCollectionInterval:  config.PerformanceConfig.MinCollectionInterval,
-		systemSampleRate:       config.PerformanceConfig.SystemSampleRate,
-		businessSampleRate:     config.PerformanceConfig.BusinessSampleRate,
-		collectionDelay:        config.PerformanceConfig.CollectionDelay,
-		systemCooldownKey:      "cooldown:system_metrics",
-		businessCooldownKey:    "cooldown:business_metrics",
+	c := &Collector{
+		systemMetricsChan:   make(chan *SystemMetrics, 10),
+		businessMetricsChan: make(chan *BusinessMetrics, 10),
+		alertChan:           make(chan *Alert, 10),
+		maxHistorySize:      100, // 默认值
+		startTime:           time.Now(),
 	}
 
-	// 应用选项
+	// 应用配置选项
 	for _, opt := range opts {
-		opt(collector)
+		opt(c)
 	}
 
-	return collector
-}
+	// 从配置加载参数
+	cfg := GetConfig()
+	if cfg != nil {
+		monitoringCfg := cfg.Monitoring
 
-// IsRunning 返回收集器是否正在运行
-func (c *Collector) IsRunning() bool {
-	c.statusMutex.RLock()
-	defer c.statusMutex.RUnlock()
-	return c.isRunning
-}
-
-// GetUptime 返回收集器运行时间
-func (c *Collector) GetUptime() time.Duration {
-	c.statusMutex.RLock()
-	defer c.statusMutex.RUnlock()
-	return time.Since(c.startTime)
-}
-
-// GetMetricsCount 返回收集的指标总数
-func (c *Collector) GetMetricsCount() int64 {
-	c.statusMutex.RLock()
-	defer c.statusMutex.RUnlock()
-	return c.metricsCount
-}
-
-// GetErrorCount 返回错误计数
-func (c *Collector) GetErrorCount() int64 {
-	c.statusMutex.RLock()
-	defer c.statusMutex.RUnlock()
-	return c.errorCount
-}
-
-// 记录错误
-func (c *Collector) recordError() {
-	c.statusMutex.Lock()
-	defer c.statusMutex.Unlock()
-	c.errorCount++
-	promMonitorErrorsTotal.Inc()
-
-	// If we have too many errors in a row, send a critical alert
-	if c.errorCount >= 5 {
-		c.alertChan <- &Alert{
-			Level:   AlertLevelCritical,
-			Message: "连续多次收集指标失败，请检查系统状态",
-		}
-		// Reset counter after sending critical alert
-		c.errorCount = 0
-	}
-}
-
-// 记录指标
-func (c *Collector) recordMetrics() {
-	c.statusMutex.Lock()
-	defer c.statusMutex.Unlock()
-	c.metricsCount++
-}
-
-// withRetry executes a function with exponential backoff retry
-func withRetry(operation func() error, maxRetries int, initialBackoff time.Duration) error {
-	var err error
-	backoff := initialBackoff
-
-	for i := 0; i < maxRetries; i++ {
-		if i > 0 {
-			time.Sleep(backoff)
-			backoff *= 2 // Exponential backoff
+		// 如果没有通过选项设置，则使用配置文件中的值
+		if c.maxHistorySize == 100 && monitoringCfg.Performance.MaxHistorySize > 0 {
+			c.maxHistorySize = monitoringCfg.Performance.MaxHistorySize
 		}
 
-		if err = operation(); err == nil {
-			return nil
+		if c.collectionDelay == 0 && monitoringCfg.Performance.CollectionDelay > 0 {
+			c.collectionDelay = monitoringCfg.Performance.CollectionDelay
 		}
 
-		log.Printf("Operation failed (attempt %d/%d): %v", i+1, maxRetries, err)
-	}
-
-	return fmt.Errorf("after %d attempts: %w", maxRetries, err)
-}
-
-// shouldCollect 判断是否应该执行收集操作（实现缓存和最小间隔控制）
-func (c *Collector) shouldCollect(lastCollection time.Time) bool {
-	c.collectionMutex.Lock()
-	defer c.collectionMutex.Unlock()
-
-	// 检查距离上次收集是否已经超过最小间隔
-	return time.Since(lastCollection) >= c.minCollectionInterval
-}
-
-// shouldSample 判断是否应该进行采样收集
-func (c *Collector) shouldSample(isSystem bool) bool {
-	c.sampleMutex.Lock()
-	defer c.sampleMutex.Unlock()
-
-	if isSystem {
-		c.sampleCounter.system++
-		if c.systemSampleRate <= 1 {
-			return true
+		if c.systemSampleRate == 0 && monitoringCfg.Performance.SystemSampleRate > 0 {
+			c.systemSampleRate = monitoringCfg.Performance.SystemSampleRate
 		}
-		return c.sampleCounter.system%c.systemSampleRate == 1
-	} else {
-		c.sampleCounter.business++
-		if c.businessSampleRate <= 1 {
-			return true
+
+		if c.businessSampleRate == 0 && monitoringCfg.Performance.BusinessSampleRate > 0 {
+			c.businessSampleRate = monitoringCfg.Performance.BusinessSampleRate
 		}
-		return c.sampleCounter.business%c.businessSampleRate == 1
-	}
-}
 
-// isInCooldown 检查是否在冷却期内
-func (c *Collector) isInCooldown(key string) bool {
-	if !GetConfig().RedisConfig.Enabled || redisClient == nil {
-		return false
-	}
-
-	inCooldown, err := isInCooldown(key, GetConfig().PerformanceConfig.InterFuncDelay)
-	if err != nil {
-		log.Printf("Failed to check cooldown for %s: %v", key, err)
-		return false
-	}
-
-	return inCooldown
-}
-
-// setCooldown 设置冷却期
-func (c *Collector) setCooldown(key string) {
-	if !GetConfig().RedisConfig.Enabled || redisClient == nil {
-		return
-	}
-
-	if err := setCooldown(key, GetConfig().PerformanceConfig.InterFuncDelay); err != nil {
-		log.Printf("Failed to set cooldown for %s: %v", key, err)
-	}
-}
-
-// updateLastCollection 更新上次收集时间
-func (c *Collector) updateLastCollection(isSystem bool) {
-	c.collectionMutex.Lock()
-	defer c.collectionMutex.Unlock()
-
-	if isSystem {
-		c.lastSystemCollection = time.Now()
-	} else {
-		c.lastBusinessCollection = time.Now()
-	}
-}
-
-// 收集系统指标
-func (c *Collector) collectSystemMetrics() {
-	defer func() {
-		if r := recover(); r != nil {
-			log.Printf("Recovered from panic in collectSystemMetrics: %v", r)
-			// Record the panic as an error
-			c.recordError()
-		}
-	}()
-
-	defer c.wg.Done()
-
-	ticker := time.NewTicker(GetConfig().CollectInterval)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-c.ctx.Done():
-			return
-		case <-ticker.C:
-			// 检查是否在冷却期内
-			if c.isInCooldown(c.systemCooldownKey) {
-				log.Printf("Skipping system metrics collection due to cooldown")
-				continue
-			}
-
-			// 检查是否应该采样收集
-			if !c.shouldSample(true) {
-				continue
-			}
-
-			// 检查是否应该收集（避免过于频繁的IO操作）
-			if !c.shouldCollect(c.lastSystemCollection) {
-				log.Printf("Skipping system metrics collection due to minimum interval constraint")
-				continue
-			}
-
-			// Use retry for collecting metrics
-			var metrics *SystemMetrics
-			err := withRetry(func() error {
-				var err error
-				metrics, err = CollectSystemMetrics()
-				return err
-			}, 2, 2*time.Second) // 减少重试次数和增加初始退避时间
-
-			if err != nil {
-				c.recordError()
-				c.alertChan <- &Alert{
-					Level:   AlertLevelError,
-					Message: fmt.Sprintf("收集系统指标失败: %v", err),
-				}
-				continue
-			}
-
-			// 更新上次收集时间
-			c.updateLastCollection(true)
-
-			// Update latest metrics
-			c.metricsMutex.Lock()
-			c.lastSystemMetrics = metrics
-			c.metricsMutex.Unlock()
-
-			// Add to history
-			c.historyMutex.Lock()
-			c.systemMetricsHistory = append(c.systemMetricsHistory, metrics)
-			// Limit history size
-			if len(c.systemMetricsHistory) > c.maxHistorySize {
-				c.systemMetricsHistory = c.systemMetricsHistory[1:]
-			}
-			c.historyMutex.Unlock()
-
-			// Record metrics
-			c.recordMetrics()
-
-			// 缓存到Redis
-			if GetConfig().RedisConfig.Enabled {
-				if err := cacheSystemMetrics(metrics); err != nil {
-					log.Printf("Failed to cache system metrics: %v", err)
-				}
-			}
-
-			// Send to channel
-			select {
-			case c.systemMetricsChan <- metrics:
-			default:
-				log.Println("WARNING: System metrics channel is full, dropping metrics")
-			}
-
-			// 设置冷却期
-			c.setCooldown(c.systemCooldownKey)
-
-			// 在每次收集后增加延迟，减轻系统压力
-			if c.collectionDelay > 0 {
-				time.Sleep(c.collectionDelay)
-			}
+		if c.minCollectionInterval == 0 && monitoringCfg.MinCollectionInterval > 0 {
+			c.minCollectionInterval = monitoringCfg.MinCollectionInterval
 		}
 	}
-}
 
-// 收集业务指标
-func (c *Collector) collectBusinessMetrics() {
-	defer func() {
-		if r := recover(); r != nil {
-			log.Printf("Recovered from panic in collectBusinessMetrics: %v", r)
-			c.recordError()
-		}
-	}()
-
-	defer c.wg.Done()
-
-	ticker := time.NewTicker(GetConfig().CollectInterval)
-	defer ticker.Stop()
-
-	var lastErr error
-	var retryCount int
-	const maxRetries = 2 // 减少重试次数
-
-	for {
-		select {
-		case <-c.ctx.Done():
-			return
-		case <-ticker.C:
-			// 检查是否在冷却期内
-			if c.isInCooldown(c.businessCooldownKey) {
-				log.Printf("Skipping business metrics collection due to cooldown")
-				continue
-			}
-
-			// 检查是否应该采样收集
-			if !c.shouldSample(false) {
-				continue
-			}
-
-			// 检查是否应该收集（避免过于频繁的IO操作）
-			if !c.shouldCollect(c.lastBusinessCollection) {
-				log.Printf("Skipping business metrics collection due to minimum interval constraint")
-				continue
-			}
-
-			var metrics *BusinessMetrics
-			var err error
-
-			start := time.Now()
-			defer func() {
-				promBusinessCollectDuration.Observe(time.Since(start).Seconds())
-			}()
-
-			// 确保复用客户端存在
-			c.tsClientMu.Lock()
-			if c.tsClient == nil {
-				if ts, e := NewTeamSpeakClient(GetConfig().TeamSpeakConfig); e != nil {
-					err = fmt.Errorf("init TeamSpeak client failed: %w", e)
-				} else {
-					c.tsClient = ts
-				}
-			}
-			ts := c.tsClient
-			c.tsClientMu.Unlock()
-
-			if err == nil && ts == nil {
-				err = fmt.Errorf("teamspeak client not available")
-			}
-
-			// Try to collect metrics with retry on the shared client
-			for attempt := 0; err == nil && attempt < maxRetries; attempt++ {
-				if attempt > 0 {
-					backoff := time.Second * time.Duration(attempt*2)
-					log.Printf("Retrying in %v... (attempt %d/%d)", backoff, attempt+1, maxRetries)
-					time.Sleep(backoff)
-				}
-
-				// 自愈连接
-				if e := ts.ensureConnected(); e != nil {
-					err = fmt.Errorf("ensureConnected failed: %w", e)
-					continue
-				}
-
-				// 获取服务器信息并构造业务指标
-				srv, e := ts.GetServerInfo()
-				if e != nil {
-					err = e
-					continue
-				}
-
-				m := &BusinessMetrics{Timestamp: time.Now()}
-				m.OnlineUsers = srv.OnlineUsers
-				m.ChannelCount = srv.ChannelCount
-				m.Uptime = srv.Uptime
-				m.VoiceQuality = srv.VoiceQuality / 100.0
-				if m.VoiceQuality < 0.7 {
-					m.VoiceQuality = 0.7
-				}
-				checkBusinessAlerts(m)
-				metrics = m
-				err = nil
-				break
-			}
-
-			if err != nil {
-				retryCount++
-				c.recordError()
-
-				// 首次失败或错误变化时发送告警
-				if retryCount == 1 || (lastErr != nil && lastErr.Error() != err.Error()) {
-					c.alertChan <- &Alert{
-						Level:   AlertLevelError,
-						Message: fmt.Sprintf("收集业务指标失败: %v", err),
-					}
-				}
-				lastErr = err
-				continue
-			}
-
-			// 更新上次收集时间
-			c.updateLastCollection(false)
-
-			// Update latest metrics
-			c.metricsMutex.Lock()
-			c.lastBusinessMetrics = metrics
-			c.metricsMutex.Unlock()
-
-			// Prometheus: 更新业务指标
-			promBusinessOnlineUsers.Set(float64(metrics.OnlineUsers))
-			promBusinessChannels.Set(float64(metrics.ChannelCount))
-			promBusinessVoiceQuality.Set(metrics.VoiceQuality * 100.0)
-
-			// Add to history
-			c.historyMutex.Lock()
-			c.businessMetricsHistory = append(c.businessMetricsHistory, metrics)
-			// Limit history size
-			if len(c.businessMetricsHistory) > c.maxHistorySize {
-				c.businessMetricsHistory = c.businessMetricsHistory[1:]
-			}
-			c.historyMutex.Unlock()
-
-			// Record metrics
-			c.recordMetrics()
-
-			// 缓存到Redis
-			if GetConfig().RedisConfig.Enabled {
-				if err := cacheBusinessMetrics(metrics); err != nil {
-					log.Printf("Failed to cache business metrics: %v", err)
-				}
-			}
-
-			// Send to channel
-			select {
-			case c.businessMetricsChan <- metrics:
-			default:
-				log.Println("Business metrics channel is full, dropping data")
-			}
-
-			// 设置冷却期
-			c.setCooldown(c.businessCooldownKey)
-
-			// 在每次收集后增加延迟，减轻系统压力
-			if c.collectionDelay > 0 {
-				time.Sleep(c.collectionDelay)
-			}
-		}
+	// 设置默认值
+	if c.maxHistorySize <= 0 {
+		c.maxHistorySize = 100
 	}
-}
-
-// 处理告警
-func (c *Collector) processAlerts() {
-	defer c.wg.Done()
-
-	for {
-		select {
-		case <-c.ctx.Done():
-			return
-		case alert := <-c.alertChan:
-			c.handleAlert(alert)
-		}
+	if c.systemSampleRate <= 0 {
+		c.systemSampleRate = 1
 	}
-}
-
-// 处理单个告警
-func (c *Collector) handleAlert(alert *Alert) {
-	// 记录日志
-	log.Printf("[%s] %s", alert.Level, alert.Message)
-
-	// 根据配置发送告警通知
-	config := GetConfig()
-	if !config.AlertConfig.Enabled {
-		return
+	if c.businessSampleRate <= 0 {
+		c.businessSampleRate = 1
+	}
+	if c.minCollectionInterval <= 0 {
+		c.minCollectionInterval = time.Second * 30
 	}
 
-	for _, method := range config.AlertConfig.NotifyMethods {
-		switch method {
-		case "console":
-			// 控制台输出
-			fmt.Printf("[%s] %s\n", alert.Level, alert.Message)
-		case "email":
-			// 发送邮件通知
-			go c.sendEmailAlert(alert)
-		case "webhook":
-			// 调用Webhook
-			go c.sendWebhookAlert(alert)
-		}
-	}
+	return c
 }
 
-// 发送邮件告警
-func (c *Collector) sendEmailAlert(alert *Alert) {
-	// 实现邮件发送逻辑
-	// 注意：需要实现具体的邮件发送逻辑
-	log.Printf("Sending email alert: [%s] %s", alert.Level, alert.Message)
+// GetSystemMetricsChan 返回系统指标通道
+func (c *Collector) GetSystemMetricsChan() <-chan *SystemMetrics {
+	return c.systemMetricsChan
 }
 
-// 发送Webhook告警
-func (c *Collector) sendWebhookAlert(alert *Alert) {
-	// 实现Webhook调用逻辑
-	// 注意：需要实现具体的Webhook调用逻辑
-	log.Printf("Sending webhook alert: [%s] %s", alert.Level, alert.Message)
+// GetBusinessMetricsChan 返回业务指标通道
+func (c *Collector) GetBusinessMetricsChan() <-chan *BusinessMetrics {
+	return c.businessMetricsChan
+}
+
+// GetAlertChan 返回告警通道
+func (c *Collector) GetAlertChan() <-chan *Alert {
+	return c.alertChan
 }
 
 // GetLastSystemMetrics 获取最新的系统指标
@@ -659,124 +303,386 @@ func (c *Collector) GetLastBusinessMetrics() *BusinessMetrics {
 func (c *Collector) GetSystemMetricsHistory() []*SystemMetrics {
 	c.historyMutex.RLock()
 	defer c.historyMutex.RUnlock()
-	return slices.Clone(c.systemMetricsHistory)
+
+	// 返回历史记录的副本
+	history := make([]*SystemMetrics, len(c.systemMetricsHistory))
+	copy(history, c.systemMetricsHistory)
+	return history
 }
 
 // GetBusinessMetricsHistory 获取业务指标历史记录
 func (c *Collector) GetBusinessMetricsHistory() []*BusinessMetrics {
 	c.historyMutex.RLock()
 	defer c.historyMutex.RUnlock()
-	return slices.Clone(c.businessMetricsHistory)
+
+	// 返回历史记录的副本
+	history := make([]*BusinessMetrics, len(c.businessMetricsHistory))
+	copy(history, c.businessMetricsHistory)
+	return history
 }
 
-// GetSystemStats gets system statistics for the given duration
-func (c *Collector) GetSystemStats(duration time.Duration) *SystemMetrics {
-	c.historyMutex.RLock()
-	defer c.historyMutex.RUnlock()
+// recordMetrics 记录指标收集次数
+func (c *Collector) recordMetrics() {
+	c.statusMutex.Lock()
+	c.metricsCount++
+	c.statusMutex.Unlock()
+}
 
-	now := time.Now()
-	var stats SystemMetrics
-	var count int
+// recordError 记录错误次数
+func (c *Collector) recordError() {
+	c.statusMutex.Lock()
+	c.errorCount++
+	c.statusMutex.Unlock()
+	promMonitorErrorsTotal.Inc()
+}
 
-	// Initialize stats timestamp
-	stats.Timestamp = now
+// IsRunning 检查收集器是否正在运行
+func (c *Collector) IsRunning() bool {
+	c.statusMutex.RLock()
+	defer c.statusMutex.RUnlock()
+	return c.isRunning
+}
 
-	for _, m := range c.systemMetricsHistory {
-		if now.Sub(m.Timestamp) <= duration {
-			// Sum up metrics for averaging
-			stats.CPU += m.CPU
-			stats.Memory.Used += m.Memory.Used
-			stats.Memory.Total += m.Memory.Total
-			stats.Disk.Used += m.Disk.Used
-			stats.Disk.Total += m.Disk.Total
-			stats.Network.RxBytes += m.Network.RxBytes
-			stats.Network.TxBytes += m.Network.TxBytes
-			stats.Network.RxRate += m.Network.RxRate
-			stats.Network.TxRate += m.Network.TxRate
-			stats.Load.Load1 += m.Load.Load1
-			stats.Load.Load5 += m.Load.Load5
-			stats.Load.Load15 += m.Load.Load15
-			count++
+// GetStatus 获取收集器状态
+func (c *Collector) GetStatus() map[string]any {
+	c.statusMutex.RLock()
+	defer c.statusMutex.RUnlock()
+
+	return map[string]any{
+		"running":       c.isRunning,
+		"start_time":    c.startTime,
+		"metrics_count": c.metricsCount,
+		"error_count":   c.errorCount,
+		"uptime":        time.Since(c.startTime).String(),
+	}
+}
+
+// updateLastCollection 更新上次收集时间
+func (c *Collector) updateLastCollection(isSystem bool) {
+	c.collectionMutex.Lock()
+	defer c.collectionMutex.Unlock()
+
+	if isSystem {
+		c.lastSystemCollection = time.Now()
+	} else {
+		c.lastBusinessCollection = time.Now()
+	}
+}
+
+// shouldCollect 检查是否应该收集指标（基于采样率和最小间隔）
+func (c *Collector) shouldCollect(isSystem bool) bool {
+	// 检查最小收集间隔
+	c.collectionMutex.Lock()
+	lastCollection := c.lastSystemCollection
+	if !isSystem {
+		lastCollection = c.lastBusinessCollection
+	}
+	c.collectionMutex.Unlock()
+
+	if time.Since(lastCollection) < c.minCollectionInterval {
+		return false
+	}
+
+	// 检查采样率
+	c.sampleMutex.Lock()
+	defer c.sampleMutex.Unlock()
+
+	if isSystem {
+		c.sampleCounter.system++
+		if c.sampleCounter.system%c.systemSampleRate != 0 {
+			return false
+		}
+	} else {
+		c.sampleCounter.business++
+		if c.sampleCounter.business%c.businessSampleRate != 0 {
+			return false
 		}
 	}
 
-	if count == 0 {
-		return nil
-	}
-
-	// Calculate averages
-	stats.CPU /= float64(count)
-	stats.Memory.Used /= uint64(count)
-	stats.Memory.Total /= uint64(count)
-	stats.Disk.Used /= uint64(count)
-	stats.Disk.Total /= uint64(count)
-	stats.Network.RxBytes /= uint64(count)
-	stats.Network.TxBytes /= uint64(count)
-	stats.Network.RxRate /= float64(count)
-	stats.Network.TxRate /= float64(count)
-	stats.Load.Load1 /= float64(count)
-	stats.Load.Load5 /= float64(count)
-	stats.Load.Load15 /= float64(count)
-
-	// Derive usage percentages
-	if stats.Memory.Total > 0 {
-		stats.Memory.Usage = (float64(stats.Memory.Used) / float64(stats.Memory.Total)) * 100
-	}
-	if stats.Disk.Total > 0 {
-		stats.Disk.Usage = (float64(stats.Disk.Used) / float64(stats.Disk.Total)) * 100
-	}
-
-	return &stats
+	return true
 }
 
-// GetBusinessStats 获取业务指标统计数据
-func (c *Collector) GetBusinessStats(duration time.Duration) *BusinessMetrics {
-	c.historyMutex.RLock()
-	defer c.historyMutex.RUnlock()
+// collectSystemMetrics 收集系统指标
+func (c *Collector) collectSystemMetrics() {
+	defer c.wg.Done()
 
-	now := time.Now()
-	var totalUsers, totalChannels int
-	var totalUptime time.Duration
-	var totalVoiceQuality float64
-	var count int
+	cfg := GetConfig()
+	var collectInterval time.Duration
+	if cfg != nil && cfg.Monitoring.CollectInterval > 0 {
+		collectInterval = cfg.Monitoring.CollectInterval
+	} else {
+		collectInterval = time.Hour // 默认值
+	}
 
-	for _, m := range c.businessMetricsHistory {
-		if now.Sub(m.Timestamp) <= duration {
-			totalUsers += m.OnlineUsers
-			totalChannels += m.ChannelCount
-			totalUptime += m.Uptime
-			totalVoiceQuality += m.VoiceQuality
-			count++
+	ticker := time.NewTicker(collectInterval)
+	defer ticker.Stop()
+
+	// 立即收集一次
+	c.collectSystemMetricsOnce()
+
+	for {
+		select {
+		case <-c.ctx.Done():
+			return
+		case <-ticker.C:
+			c.collectSystemMetricsOnce()
+		}
+	}
+}
+
+// collectSystemMetricsOnce 执行一次系统指标收集
+func (c *Collector) collectSystemMetricsOnce() {
+	// 检查是否应该收集
+	if !c.shouldCollect(true) {
+		return
+	}
+
+	// 延迟收集（避免系统负载过高）
+	if c.collectionDelay > 0 {
+		time.Sleep(c.collectionDelay)
+	}
+
+	var metrics *SystemMetrics
+	var err error
+
+	start := time.Now()
+	defer func() {
+		promBusinessCollectDuration.Observe(time.Since(start).Seconds())
+	}()
+
+	metrics, err = CollectSystemMetrics()
+	if err != nil {
+		c.recordError()
+		c.alertChan <- &Alert{
+			Level:   AlertLevelError,
+			Message: fmt.Sprintf("收集系统指标失败: %v", err),
+		}
+		return
+	}
+
+	// 更新上次收集时间
+	c.updateLastCollection(true)
+
+	// Update latest metrics
+	c.metricsMutex.Lock()
+	c.lastSystemMetrics = metrics
+	c.metricsMutex.Unlock()
+
+	// Add to history
+	c.historyMutex.Lock()
+	c.systemMetricsHistory = append(c.systemMetricsHistory, metrics)
+	// Limit history size
+	if len(c.systemMetricsHistory) > c.maxHistorySize {
+		c.systemMetricsHistory = c.systemMetricsHistory[1:]
+	}
+	c.historyMutex.Unlock()
+
+	// Record metrics
+	c.recordMetrics()
+
+	// 缓存到Redis
+	if cfg := GetConfig(); cfg != nil && cfg.Monitoring.Redis.Enabled {
+		if err := cacheSystemMetrics(metrics); err != nil {
+			log.Printf("Failed to cache system metrics: %v", err)
 		}
 	}
 
-	if count == 0 {
-		return nil
-	}
-
-	return &BusinessMetrics{
-		Timestamp:    now,
-		OnlineUsers:  totalUsers / count,
-		ChannelCount: totalChannels / count,
-		Uptime:       time.Duration(int64(totalUptime) / int64(count)),
-		VoiceQuality: totalVoiceQuality / float64(count),
+	// Send to channel
+	select {
+	case c.systemMetricsChan <- metrics:
+	default:
+		log.Println("System metrics channel is full, dropping data")
 	}
 }
 
-// 保存监控数据到文件
+const maxRetries = 3
+
+// collectBusinessMetrics 收集业务指标
+func (c *Collector) collectBusinessMetrics() {
+	defer c.wg.Done()
+
+	cfg := GetConfig()
+	var collectInterval time.Duration
+	if cfg != nil && cfg.Monitoring.CollectInterval > 0 {
+		collectInterval = cfg.Monitoring.CollectInterval
+	} else {
+		collectInterval = time.Hour // 默认值
+	}
+
+	ticker := time.NewTicker(collectInterval)
+	defer ticker.Stop()
+
+	// 立即收集一次
+	c.collectBusinessMetricsOnce()
+
+	for {
+		select {
+		case <-c.ctx.Done():
+			return
+		case <-ticker.C:
+			c.collectBusinessMetricsOnce()
+		}
+	}
+}
+
+// collectBusinessMetricsOnce 执行一次业务指标收集
+func (c *Collector) collectBusinessMetricsOnce() {
+	// 检查是否应该收集
+	if !c.shouldCollect(false) {
+		return
+	}
+
+	// 延迟收集（避免系统负载过高）
+	if c.collectionDelay > 0 {
+		time.Sleep(c.collectionDelay)
+	}
+
+	var metrics *BusinessMetrics
+	var err error
+
+	start := time.Now()
+	defer func() {
+		promBusinessCollectDuration.Observe(time.Since(start).Seconds())
+	}()
+
+	// 确保复用客户端存在
+	c.tsClientMu.Lock()
+	if c.tsClient == nil {
+		cfg := GetConfig()
+		if cfg != nil {
+			if ts, e := NewTeamSpeakClient(cfg.Teamspeak); e != nil {
+				err = fmt.Errorf("init TeamSpeak client failed: %w", e)
+			} else {
+				c.tsClient = ts
+			}
+		}
+	}
+	ts := c.tsClient
+	c.tsClientMu.Unlock()
+
+	if err == nil && ts == nil {
+		err = fmt.Errorf("teamspeak client not available")
+	}
+
+	// Try to collect metrics with retry on the shared client
+	for attempt := 0; err == nil && attempt < maxRetries; attempt++ {
+		if attempt > 0 {
+			backoff := time.Second * time.Duration(attempt*2)
+			log.Printf("Retrying in %v... (attempt %d/%d)", backoff, attempt+1, maxRetries)
+			time.Sleep(backoff)
+		}
+
+		// 自愈连接
+		if e := ts.ensureConnected(); e != nil {
+			err = fmt.Errorf("ensureConnected failed: %w", e)
+			continue
+		}
+
+		// 获取服务器信息并构造业务指标
+		srv, e := ts.GetServerInfo()
+		if e != nil {
+			err = e
+			continue
+		}
+
+		m := &BusinessMetrics{Timestamp: time.Now()}
+		m.OnlineUsers = srv.OnlineUsers
+		m.ChannelCount = srv.ChannelCount
+		m.Uptime = srv.Uptime
+		m.VoiceQuality = srv.VoiceQuality / 100.0
+		if m.VoiceQuality < 0.7 {
+			m.VoiceQuality = 0.7
+		}
+
+		cfg := GetConfig()
+		if cfg != nil {
+			checkBusinessAlerts(m, cfg)
+		}
+		metrics = m
+		err = nil
+		break
+	}
+
+	if err != nil {
+		c.recordError()
+
+		// 发送告警
+		c.alertChan <- &Alert{
+			Level:   AlertLevelError,
+			Message: fmt.Sprintf("收集业务指标失败: %v", err),
+		}
+		return
+	}
+
+	// 更新上次收集时间
+	c.updateLastCollection(false)
+
+	// Update latest metrics
+	c.metricsMutex.Lock()
+	c.lastBusinessMetrics = metrics
+	c.metricsMutex.Unlock()
+
+	// Prometheus: 更新业务指标
+	promBusinessOnlineUsers.Set(float64(metrics.OnlineUsers))
+	promBusinessChannels.Set(float64(metrics.ChannelCount))
+	promBusinessVoiceQuality.Set(metrics.VoiceQuality * 100.0)
+
+	// Add to history
+	c.historyMutex.Lock()
+	c.businessMetricsHistory = append(c.businessMetricsHistory, metrics)
+	// Limit history size
+	if len(c.businessMetricsHistory) > c.maxHistorySize {
+		c.businessMetricsHistory = c.businessMetricsHistory[1:]
+	}
+	c.historyMutex.Unlock()
+
+	// Record metrics
+	c.recordMetrics()
+
+	// 缓存到Redis
+	if cfg := GetConfig(); cfg != nil && cfg.Monitoring.Redis.Enabled {
+		if err := cacheBusinessMetrics(metrics); err != nil {
+			log.Printf("Failed to cache business metrics: %v", err)
+		}
+	}
+
+	// Send to channel
+	select {
+	case c.businessMetricsChan <- metrics:
+	default:
+		log.Println("Business metrics channel is full, dropping data")
+	}
+}
+
+// processAlerts 处理告警
+func (c *Collector) processAlerts() {
+	defer c.wg.Done()
+
+	for {
+		select {
+		case <-c.ctx.Done():
+			return
+		case alert := <-c.alertChan:
+			// 处理告警（例如：记录日志、发送邮件等）
+			log.Printf("ALERT [%s]: %s", alert.Level, alert.Message)
+
+			// 这里可以添加更多的告警处理逻辑
+			// 例如发送邮件、短信、调用 webhook 等
+		}
+	}
+}
+
+// SaveToFile 保存指标到文件
 func (c *Collector) SaveToFile(filename string) error {
 	c.metricsMutex.RLock()
-	defer c.metricsMutex.RUnlock()
-
 	data := struct {
-		SystemMetrics   *SystemMetrics
-		BusinessMetrics *BusinessMetrics
-		Timestamp       time.Time
+		SystemMetrics   *SystemMetrics   `json:"system_metrics,omitempty"`
+		BusinessMetrics *BusinessMetrics `json:"business_metrics,omitempty"`
 	}{
 		SystemMetrics:   c.lastSystemMetrics,
 		BusinessMetrics: c.lastBusinessMetrics,
-		Timestamp:       time.Now(),
 	}
+	c.metricsMutex.RUnlock()
 
 	file, err := os.Create(filename)
 	if err != nil {
@@ -784,16 +690,14 @@ func (c *Collector) SaveToFile(filename string) error {
 	}
 	defer file.Close()
 
-	encoder := json.NewEncoder(file)
-	encoder.SetIndent("", "  ")
-	if err := encoder.Encode(data); err != nil {
+	if err := json.NewEncoder(file).Encode(data); err != nil {
 		return fmt.Errorf("编码数据失败: %v", err)
 	}
 
 	return nil
 }
 
-// 从文件加载监控数据
+// LoadFromFile 从文件加载指标
 func (c *Collector) LoadFromFile(filename string) error {
 	file, err := os.Open(filename)
 	if err != nil {
@@ -865,8 +769,10 @@ func (c *Collector) Start() error {
 	go func() {
 		c.tsClientMu.Lock()
 		defer c.tsClientMu.Unlock()
-		if c.tsClient == nil {
-			if ts, err := NewTeamSpeakClient(GetConfig().TeamSpeakConfig); err != nil {
+
+		cfg := GetConfig()
+		if cfg != nil && c.tsClient == nil {
+			if ts, err := NewTeamSpeakClient(cfg.Teamspeak); err != nil {
 				log.Printf("Init TeamSpeak client failed: %v", err)
 			} else {
 				c.tsClient = ts
@@ -929,4 +835,16 @@ func (c *Collector) Stop() {
 	c.tsClientMu.Unlock()
 
 	log.Println("Metrics collector stopped")
+}
+
+// checkBusinessAlerts 检查业务指标告警
+func checkBusinessAlerts(metrics *BusinessMetrics, cfg *configPkg.Config) {
+	if cfg == nil {
+		return
+	}
+
+	thresholds := cfg.Monitoring.Alert.Thresholds
+	if metrics.VoiceQuality < thresholds.VoiceQuality {
+		metrics.Alert = fmt.Sprintf("语音质量较低: %.2f", metrics.VoiceQuality)
+	}
 }

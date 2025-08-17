@@ -16,31 +16,31 @@ var (
 
 // InitRedisCache 初始化Redis缓存
 func InitRedisCache() error {
-	config := GetConfig()
-	
-	// 如果未启用Redis，则不初始化
-	if !config.RedisConfig.Enabled {
+	cfg := GetConfig()
+
+	// 如果配置未加载或未启用Redis，则不初始化
+	if cfg == nil || !cfg.Monitoring.Redis.Enabled {
 		log.Println("Redis cache is disabled")
 		return nil
 	}
-	
+
 	// 创建Redis客户端
 	redisClient = redis.NewClient(&redis.Options{
-		Addr:     config.RedisConfig.Addr,
-		Password: config.RedisConfig.Password,
-		DB:       config.RedisConfig.DB,
+		Addr:     cfg.Monitoring.Redis.Addr,
+		Password: cfg.Monitoring.Redis.Password,
+		DB:       cfg.Monitoring.Redis.DB,
 	})
-	
+
 	// 测试连接
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	
+
 	_, err := redisClient.Ping(ctx).Result()
 	if err != nil {
 		redisClient = nil
 		return fmt.Errorf("failed to connect to Redis: %w", err)
 	}
-	
+
 	log.Println("Redis cache initialized successfully")
 	return nil
 }
@@ -60,10 +60,10 @@ func getCachedSystemMetrics() (*SystemMetrics, error) {
 	if redisClient == nil {
 		return nil, fmt.Errorf("redis client not initialized")
 	}
-	
+
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	
+
 	val, err := redisClient.Get(ctx, "system_metrics").Result()
 	if err != nil {
 		if err == redis.Nil {
@@ -71,12 +71,12 @@ func getCachedSystemMetrics() (*SystemMetrics, error) {
 		}
 		return nil, fmt.Errorf("failed to get system metrics from cache: %w", err)
 	}
-	
+
 	var metrics SystemMetrics
 	if err := json.Unmarshal([]byte(val), &metrics); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal system metrics: %w", err)
 	}
-	
+
 	return &metrics, nil
 }
 
@@ -85,21 +85,21 @@ func cacheSystemMetrics(metrics *SystemMetrics) error {
 	if redisClient == nil {
 		return fmt.Errorf("redis client not initialized")
 	}
-	
+
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	
+
 	data, err := json.Marshal(metrics)
 	if err != nil {
 		return fmt.Errorf("failed to marshal system metrics: %w", err)
 	}
-	
+
 	// 缓存1小时
-	err = redisClient.Set(ctx, "system_metrics", data, 1*time.Hour).Err()
+	err = redisClient.Set(ctx, "system_metrics", data, time.Hour).Err()
 	if err != nil {
 		return fmt.Errorf("failed to cache system metrics: %w", err)
 	}
-	
+
 	return nil
 }
 
@@ -108,10 +108,10 @@ func getCachedBusinessMetrics() (*BusinessMetrics, error) {
 	if redisClient == nil {
 		return nil, fmt.Errorf("redis client not initialized")
 	}
-	
+
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	
+
 	val, err := redisClient.Get(ctx, "business_metrics").Result()
 	if err != nil {
 		if err == redis.Nil {
@@ -119,12 +119,12 @@ func getCachedBusinessMetrics() (*BusinessMetrics, error) {
 		}
 		return nil, fmt.Errorf("failed to get business metrics from cache: %w", err)
 	}
-	
+
 	var metrics BusinessMetrics
 	if err := json.Unmarshal([]byte(val), &metrics); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal business metrics: %w", err)
 	}
-	
+
 	return &metrics, nil
 }
 
@@ -133,54 +133,20 @@ func cacheBusinessMetrics(metrics *BusinessMetrics) error {
 	if redisClient == nil {
 		return fmt.Errorf("redis client not initialized")
 	}
-	
+
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	
+
 	data, err := json.Marshal(metrics)
 	if err != nil {
 		return fmt.Errorf("failed to marshal business metrics: %w", err)
 	}
-	
+
 	// 缓存1小时
-	err = redisClient.Set(ctx, "business_metrics", data, 1*time.Hour).Err()
+	err = redisClient.Set(ctx, "business_metrics", data, time.Hour).Err()
 	if err != nil {
 		return fmt.Errorf("failed to cache business metrics: %w", err)
 	}
-	
-	return nil
-}
 
-// isInCooldown 检查是否在冷却期内
-func isInCooldown(key string, cooldown time.Duration) (bool, error) {
-	if redisClient == nil {
-		return false, fmt.Errorf("redis client not initialized")
-	}
-	
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	
-	exists, err := redisClient.Exists(ctx, key).Result()
-	if err != nil {
-		return false, fmt.Errorf("failed to check cooldown key: %w", err)
-	}
-	
-	return exists > 0, nil
-}
-
-// setCooldown 设置冷却期
-func setCooldown(key string, duration time.Duration) error {
-	if redisClient == nil {
-		return fmt.Errorf("redis client not initialized")
-	}
-	
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	
-	err := redisClient.Set(ctx, key, "1", duration).Err()
-	if err != nil {
-		return fmt.Errorf("failed to set cooldown: %w", err)
-	}
-	
 	return nil
 }
