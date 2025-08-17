@@ -15,6 +15,15 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+func RegisterRoutes(router *gin.Engine) {
+	router.POST(api.DeployStartPath, startDeployHandler)
+	router.GET(api.DeployStatusPath, deployStatusHandler)
+	router.POST(api.DeployResetPath, resetDeployStatusHandler)
+	router.GET(api.DeployContainerStatusPath, containerStatusHandler)
+	router.POST(api.DeployInitEnvPath, initEnvironmentHandler)
+	router.POST(api.DeployCleanupPath, cleanupHandler)
+}
+
 type deployStatus struct {
 	Status  string `json:"status"`
 	Message string `json:"message"`
@@ -38,15 +47,6 @@ func Initialize(cfg *config.Config) error {
 
 	deployManager = NewDeploymentManager(deployConfig.ScriptDir)
 	return nil
-}
-
-func RegisterRoutes(router *gin.Engine) {
-	router.POST(api.DeployStartPath, startDeployHandler)
-	router.GET(api.DeployStatusPath, deployStatusHandler)
-	router.POST(api.DeployResetPath, resetDeployStatusHandler)
-	router.GET(api.DeployContainerStatusPath, containerStatusHandler)
-	router.POST(api.DeployInitEnvPath, initEnvironmentHandler)
-	router.POST(api.DeployCleanupPath, cleanupHandler)
 }
 
 func startDeployHandler(c *gin.Context) {
