@@ -288,7 +288,7 @@ if [ "$PNPM_SETUP" = true ]; then
 fi
 
 # 检查环境变量文件
-ENV_FILES=(".env" ".env.development" ".env.production")
+ENV_FILES=(".env" ".env.development" ".env.production" "backend/.env" "backend/.env.development" "backend/.env.production")
 ENV_FILE_FOUND=false
 
 for env_file in "${ENV_FILES[@]}"; do
