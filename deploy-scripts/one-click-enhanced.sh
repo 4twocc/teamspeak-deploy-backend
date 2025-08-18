@@ -81,31 +81,7 @@ docker logs teamspeak-main > "$first_log_file" 2>&1
 print_info "First run log has been saved to: $first_log_file"
 
 # 从日志中提取敏感信息并写入.env文件
-print_info "Extracting sensitive information from logs..."
-
-# 提取serveradmin密码
-serveradmin_password=$(grep -o 'password= [^ ]*' "$first_log_file" | head -1 | cut -d' ' -f2)
-if [ -n "$serveradmin_password" ]; then
-    print_success "Found serveradmin password: $serveradmin_password"
-else
-    print_warn "ServerAdmin password not found in logs"
-fi
-
-# 提取server query API key
-server_query_api_key=$(grep -o 'API key: [^ ]*' "$first_log_file" | head -1 | cut -d' ' -f3)
-if [ -n "$server_query_api_key" ]; then
-    print_success "Found server query API key: $server_query_api_key"
-else
-    print_warn "Server query API key not found in logs"
-fi
-
-# 提取server admin token
-server_admin_token=$(grep -o 'token=[^ ]*' "$first_log_file" | head -1 | cut -d'=' -f2)
-if [ -n "$server_admin_token" ]; then
-    print_success "Found server admin token: $server_admin_token"
-else
-    print_warn "Server admin token not found in logs"
-fi
+print_info "Extracting sensitive information from logs and generating JWT secret..."
 
 # 获取项目根目录路径
 project_root=$(dirname "$(dirname "$(readlink -f "$0")")")
@@ -117,35 +93,15 @@ if [ -f "$env_file" ]; then
     print_info "Backed up existing .env file to $env_file.backup"
 fi
 
-# 创建或更新.env文件
-print_info "Updating .env file with extracted credentials..."
-
-# 读取现有.env文件内容（如果存在）
-if [ -f "$env_file" ]; then
-    # 保留非敏感配置
-    grep -v -E '^(TEAMSPEAK_PASSWORD|TEAMSPEAK_SERVER_QUERY_APIKEY|TEAMSPEAK_SERVER_ADMIN_TOKEN)=' "$env_file" > "$env_file.tmp"
-    mv "$env_file.tmp" "$env_file"
+# 使用Go程序处理所有敏感信息（包括TeamSpeak凭证和JWT密钥）
+print_info "Updating .env file with extracted credentials and generated JWT secret..."
+if go run "$project_root/deploy-scripts/extract_teamspeak_creds.go" "$first_log_file"; then
+    print_success "Successfully updated .env file with credentials and generated JWT secret!"
 else
-    # 创建新的.env文件
-    touch "$env_file"
+    print_error "Failed to update .env file with credentials and generate JWT secret!"
+    exit 1
 fi
 
-# 添加提取的敏感信息
-{
-    echo "# TeamSpeak Credentials (auto-generated on $(date))" 
-    if [ -n "$serveradmin_password" ]; then
-        echo "TEAMSPEAK_PASSWORD=$serveradmin_password"
-    fi
-    if [ -n "$server_query_api_key" ]; then
-        echo "TEAMSPEAK_SERVER_QUERY_APIKEY=$server_query_api_key"
-    fi
-    if [ -n "$server_admin_token" ]; then
-        echo "TEAMSPEAK_SERVER_ADMIN_TOKEN=$server_admin_token"
-    fi
-    echo ""
-} >> "$env_file"
-
-print_success "Updated .env file with TeamSpeak credentials!"
 print_info "Credentials saved to: $env_file"
 
 print_success "TeamSpeak deployment and credential extraction completed successfully!"

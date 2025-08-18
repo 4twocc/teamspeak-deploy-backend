@@ -24,6 +24,7 @@ Godeps/
 .env.*
 .env.development
 .env.production
+!.env.example
 
 # Data directory
 data/
