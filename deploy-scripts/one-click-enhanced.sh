@@ -39,18 +39,49 @@ extract_credentials() {
     # 使用bash脚本提取凭证
     print_info "Extracting credentials using bash script..."
     
-    # 提取serveradmin密码
-    password=$(grep -o 'password=\s*\S*' "$log_file" | head -1 | cut -d'=' -f2 | xargs)
-    if [ -z "$password" ]; then
-        print_error "Failed to extract password from log file"
+    # 检查日志文件是否存在
+    if [ ! -f "$log_file" ]; then
+        print_error "Log file does not exist: $log_file"
         return 1
     fi
     
-    # 提取API key（如果存在）
-    api_key=$(grep -o 'API key:\s*\S*' "$log_file" | head -1 | cut -d':' -f2 | xargs)
+    # 显示日志文件内容以便调试
+    print_debug "Log file content:"
+    while IFS= read -r line; do
+        print_debug "$line"
+    done < "$log_file"
     
-    # 提取token（如果存在）
-    token=$(grep -o 'token=[^\s]*' "$log_file" | head -1 | cut -d'=' -f2 | xargs)
+    # 提取serveradmin密码 - 使用更广泛的匹配模式
+    # TeamSpeak日志中密码可能出现在不同的格式中
+    password=""
+    
+    # 尝试多种模式提取密码
+    # 模式1: 查找"serveradmin password="格式
+    password=$(grep -i "serveradmin password=" "$log_file" | sed -E 's/.*serveradmin password=([^ ]+).*/\1/' | head -1)
+    
+    # 模式2: 查找单独的password=模式
+    if [ -z "$password" ]; then
+        password=$(grep -E "password=[^ ]+" "$log_file" | grep -v "permissions\|database\|file\|config" | sed -E 's/.*password=([^ ]+).*/\1/' | head -1)
+    fi
+    
+    # 模式3: 更宽松的匹配模式
+    if [ -z "$password" ]; then
+        password=$(grep -i "password" "$log_file" | grep -v "permissions\|database\|file\|config" | sed -E 's/.*[pP]assword[=: ]*([^ \t\n\r]+).*/\1/' | head -1)
+    fi
+    
+    if [ -z "$password" ]; then
+        print_error "Failed to extract password from log file"
+        print_info "Please check the log file manually: $log_file"
+        return 1
+    fi
+    
+    print_info "Successfully extracted password"
+    
+    # 提取API key（如果存在）- 使用更准确的匹配
+    api_key=$(grep -E 'API key:\s*\S+' "$log_file" | sed -E 's/.*API key:\s*(\S+).*/\1/' | head -1)
+    
+    # 提取token（如果存在）- 使用更准确的匹配
+    token=$(grep -E 'token=[^\s]*' "$log_file" | sed -E 's/.*token=([^\s]+).*/\1/' | head -1)
     
     # 备份现有的.env文件（如果存在）
     if [ -f "$env_file" ]; then
