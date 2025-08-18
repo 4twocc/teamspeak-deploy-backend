@@ -7,7 +7,12 @@ COPY . .
 # 添加构建参数
 RUN go env -w GOPROXY=https://goproxy.cn,direct
 RUN go mod download
-RUN CGO_ENABLED=0 GOOS=linux go build -o teamspeak-backend .
+
+# 安装gcc和musl-dev以支持CGO
+RUN apk add --no-cache gcc musl-dev
+
+# 启用CGO以支持SQLite
+RUN CGO_ENABLED=1 GOOS=linux go build -o teamspeak-backend .
 
 FROM golang:1.24.3-alpine AS development
 RUN apk --no-cache add ca-certificates
