@@ -140,6 +140,20 @@ EOF
     print_success "Docker 镜像源配置完成"
 }
 
+# 添加一个新的函数用于测试Docker连接
+test_docker_connection() {
+    print_info "测试Docker连接..."
+    
+    # 尝试拉取一个小型镜像来测试连接
+    if docker pull hello-world:latest &> /dev/null; then
+        print_success "Docker连接测试成功"
+        # 清理测试镜像
+        docker rmi hello-world:latest &> /dev/null || true
+    else
+        print_warn "Docker连接测试失败，可能需要配置镜像源"
+    fi
+}
+
 # 检查并安装pnpm
 setup_pnpm() {
     print_info "检查并设置pnpm..."
@@ -280,20 +294,6 @@ fi
 if [ "$PNPM_SETUP" = true ]; then
     setup_pnpm
 fi
-
-# 添加一个新的函数用于测试Docker连接
-test_docker_connection() {
-    print_info "测试Docker连接..."
-    
-    # 尝试拉取一个小型镜像来测试连接
-    if docker pull hello-world:latest &> /dev/null; then
-        print_success "Docker连接测试成功"
-        # 清理测试镜像
-        docker rmi hello-world:latest &> /dev/null || true
-    else
-        print_warn "Docker连接测试失败，可能需要配置镜像源"
-    fi
-}
 
 # 检查环境变量文件
 ENV_FILES=(".env" ".env.development" ".env.production" "backend/.env" "backend/.env.development" "backend/.env.production")
