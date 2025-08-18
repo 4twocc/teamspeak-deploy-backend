@@ -8,11 +8,14 @@ COPY . .
 RUN go env -w GOPROXY=https://goproxy.cn,direct
 RUN go mod download
 
-# 安装gcc和musl-dev以支持CGO
-RUN apk add --no-cache gcc musl-dev
+# 安装gcc、musl-dev和upx以支持CGO和二进制压缩
+RUN apk add --no-cache gcc musl-dev upx
 
-# 启用CGO以支持SQLite
-RUN CGO_ENABLED=1 GOOS=linux go build -o teamspeak-backend .
+# 启用CGO以支持SQLite并使用优化参数
+RUN CGO_ENABLED=1 GOOS=linux go build -ldflags="-s -w" -o teamspeak-backend .
+
+# 使用UPX压缩二进制文件
+RUN upx --best --lzma teamspeak-backend
 
 FROM alpine:latest AS production
 RUN apk --no-cache add ca-certificates tzdata
