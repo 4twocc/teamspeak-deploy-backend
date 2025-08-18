@@ -14,29 +14,8 @@ RUN apk add --no-cache gcc musl-dev
 # 启用CGO以支持SQLite
 RUN CGO_ENABLED=1 GOOS=linux go build -o teamspeak-backend .
 
-FROM golang:1.24.3-alpine AS development
-RUN apk --no-cache add ca-certificates
-WORKDIR /app
-# 从builder阶段复制二进制文件
-COPY --from=builder /app/teamspeak-backend .
-
-# 复制默认配置文件
-COPY --from=builder /app/config.yaml ./config.yaml
-
-# 创建数据目录
-RUN mkdir -p ./data
-
-EXPOSE 8080
-
-# 安装热重载工具
-RUN go install github.com/githubnemo/CompileDaemon@latest
-
-# 启动命令
-CMD ["./teamspeak-backend"]
-
 FROM alpine:latest AS production
-RUN apk --no-cache add ca-certificates
-
+RUN apk --no-cache add ca-certificates tzdata
 WORKDIR /app
 
 # 从builder阶段复制二进制文件
@@ -49,6 +28,10 @@ COPY --from=builder /app/config.yaml ./config.yaml
 RUN mkdir -p ./data
 
 EXPOSE 8080
+
+# 使用非root用户运行
+RUN adduser -D -s /bin/sh teamspeak
+USER teamspeak
 
 # 启动命令
 CMD ["./teamspeak-backend"]
