@@ -56,8 +56,10 @@ while true; do
     print_info "4. 增强版一键部署（自动提取并保存凭证）"
     print_info "5. 执行所有步骤（推荐）"
     print_info "6. 执行所有步骤（增强版，推荐用于首次部署）"
-    print_info "7. 退出"
-    read -p "请输入您的选择（1-7）: " choice
+    print_info "7. 部署后台管理系统"
+    print_info "8. 执行所有步骤并部署后台（推荐）"
+    print_info "9. 退出"
+    read -p "请输入您的选择（1-9）: " choice
     
     case $choice in 
         1)
@@ -166,11 +168,89 @@ while true; do
             read -p "按回车键继续..."
             ;;
         7)
+            print_info "正在部署后台管理系统..."
+            # 检查start-with-docker.sh是否存在
+            if [ ! -f "../start-with-docker.sh" ]; then
+                print_error "错误: 找不到脚本文件 ../start-with-docker.sh"
+                read -p "按回车键继续..."
+                continue
+            fi
+            
+            # 设置执行权限
+            chmod +x ../start-with-docker.sh 2>/dev/null || {
+                print_warn "警告: 无法设置start-with-docker.sh脚本执行权限"
+            }
+            
+            # 运行后台部署脚本
+            if ../start-with-docker.sh; then
+                print_success "后台管理系统部署完成！"
+            else
+                print_error "后台管理系统部署失败！"
+            fi
+            read -p "按回车键继续..."
+            ;;
+        8)
+            print_info "开始执行所有部署步骤并部署后台管理系统..."
+            print_info "步骤1: 初始化环境"
+            if sudo ./init-env.sh; then
+                print_success "环境初始化完成！"
+            else
+                print_error "环境初始化失败！"
+                read -p "按回车键继续..."
+                continue
+            fi
+            
+            print_info "步骤2: 开启端口"
+            if sudo ./open-ports.sh; then
+                print_success "端口开启完成！"
+            else
+                print_error "端口开启失败！"
+                read -p "按回车键继续..."
+                continue
+            fi
+            
+            print_info "步骤3: 部署TeamSpeak"
+            if ./one-click.sh; then
+                print_success "TeamSpeak部署完成！"
+            else
+                print_error "TeamSpeak部署失败！"
+                read -p "按回车键继续..."
+                continue
+            fi
+            
+            print_info "步骤4: 部署后台管理系统"
+            # 检查start-with-docker.sh是否存在
+            if [ ! -f "../start-with-docker.sh" ]; then
+                print_error "错误: 找不到脚本文件 ../start-with-docker.sh"
+                read -p "按回车键继续..."
+                continue
+            fi
+            
+            # 设置执行权限
+            chmod +x ../start-with-docker.sh 2>/dev/null || {
+                print_warn "警告: 无法设置start-with-docker.sh脚本执行权限"
+            }
+            
+            # 运行后台部署脚本
+            if ../start-with-docker.sh; then
+                print_success "后台管理系统部署完成！"
+                print_info "=================================="
+                print_success "所有部署步骤已全部完成！"
+                print_info "首次运行日志已保存至 /var/lib/teamspeak/data/first_run.log"
+                print_info "您可以使用以下命令查看服务状态："
+                print_info "  docker ps | grep teamspeak"
+                print_info "  docker logs teamspeak-main"
+            else
+                print_error "后台管理系统部署失败！"
+            fi
+            read -p "按回车键继续..."
+            ;;
+        9)
             print_info "退出脚本"
             exit 0
             ;;
         *)
-            print_warn "无效的选择，请输入1-7之间的数字"
+            print_warn "无效的选择，请输入1-9之间的数字"
             read -p "按回车键继续..."
             ;;
     esac
