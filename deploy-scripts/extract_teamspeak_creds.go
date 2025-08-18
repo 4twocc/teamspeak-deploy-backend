@@ -1,3 +1,4 @@
+// description: 不再使用，遗弃，仅供参考
 package main
 
 import (
@@ -72,7 +73,7 @@ func generateJWTSecret() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to generate JWT secret: %w", err)
 	}
-	
+
 	return strings.TrimSpace(string(output)), nil
 }
 
@@ -112,7 +113,7 @@ func extractCredentials(logFile string) (*Credentials, error) {
 // updateEnvFile 更新.env文件
 func updateEnvFile(envFile string, creds *Credentials, projectRoot string) error {
 	var lines []string
-	
+
 	// 检查.env文件是否存在
 	if _, err := os.Stat(envFile); os.IsNotExist(err) {
 		// 如果.env文件不存在，从.env.example复制
@@ -135,25 +136,25 @@ func updateEnvFile(envFile string, creds *Credentials, projectRoot string) error
 			return fmt.Errorf("failed to open .env file: %w", err)
 		}
 		defer file.Close()
-		
+
 		scanner := bufio.NewScanner(file)
 		for scanner.Scan() {
 			line := scanner.Text()
 			// 跳过敏感配置行
-			if strings.HasPrefix(line, "TEAMSPEAK_PASSWORD=") || 
-			   strings.HasPrefix(line, "TEAMSPEAK_SERVER_QUERY_APIKEY=") || 
-			   strings.HasPrefix(line, "TEAMSPEAK_SERVER_ADMIN_TOKEN=") ||
-			   strings.HasPrefix(line, "JWT_SECRET=") {
+			if strings.HasPrefix(line, "TEAMSPEAK_PASSWORD=") ||
+				strings.HasPrefix(line, "TEAMSPEAK_SERVER_QUERY_APIKEY=") ||
+				strings.HasPrefix(line, "TEAMSPEAK_SERVER_ADMIN_TOKEN=") ||
+				strings.HasPrefix(line, "JWT_SECRET=") {
 				continue
 			}
 			lines = append(lines, line)
 		}
-		
+
 		if err := scanner.Err(); err != nil {
 			return fmt.Errorf("error reading .env file: %w", err)
 		}
 	}
-	
+
 	// 添加TeamSpeak凭证
 	lines = append(lines, "")
 	lines = append(lines, "# TeamSpeak Credentials (auto-generated)")

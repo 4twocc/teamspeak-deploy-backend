@@ -89,8 +89,28 @@ extract_credentials() {
         print_info "Backed up existing .env file to $env_file.backup"
     fi
     
+    # 读取现有的配置（如果.env文件存在）
+    if [ -f "$env_file" ]; then
+        # 读取非敏感配置行
+        grep -v "^TEAMSPEAK_PASSWORD=\|^TEAMSPEAK_SERVER_QUERY_APIKEY=\|^TEAMSPEAK_SERVER_ADMIN_TOKEN=\|^JWT_SECRET=" "$env_file" > "$env_file.tmp"
+    else
+        # 如果.env文件不存在，尝试从.env.example复制
+        env_example_file="$(dirname "$env_file")/.env.example"
+        if [ -f "$env_example_file" ]; then
+            cp "$env_example_file" "$env_file.tmp"
+        else
+            # 如果.env.example也不存在，创建空文件
+            touch "$env_file.tmp"
+        fi
+    fi
+    
     # 创建或更新.env文件
     {
+        # 添加现有配置
+        cat "$env_file.tmp"
+        echo ""
+        
+        # 添加TeamSpeak凭证
         echo "# TeamSpeak Credentials (auto-generated)"
         echo "TEAMSPEAK_SERVER_ADMIN_USERNAME=serveradmin"
         echo "TEAMSPEAK_PASSWORD=$password"
@@ -112,6 +132,9 @@ extract_credentials() {
             echo "JWT_SECRET=$jwt_secret"
         fi
     } > "$env_file"
+    
+    # 删除临时文件
+    rm -f "$env_file.tmp"
     
     print_success "Successfully updated .env file with credentials and generated JWT secret!"
     return 0
