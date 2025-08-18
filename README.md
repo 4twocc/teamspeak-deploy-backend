@@ -117,6 +117,50 @@ API 文档可通过 `/api/docs` 端点访问。
 2. 安装依赖: `npm install`
 3. 启动开发服务器: `npm run dev`
 
+## 常见问题
+
+### Docker镜像拉取失败
+
+如果遇到以下错误：
+```
+Get "https://registry-1.docker.io/v2/": net/http: request canceled while waiting for connection
+```
+
+这通常是因为网络连接问题导致无法访问Docker Hub。可以通过以下方式解决：
+
+1. 使用国内Docker镜像源：
+   ```bash
+   # 运行项目提供的修复脚本（需要sudo权限）
+   sudo ./fix-docker-registry.sh
+   ```
+
+2. 或者手动配置Docker镜像源：
+   ```bash
+   sudo mkdir -p /etc/docker
+   sudo tee /etc/docker/daemon.json <<EOF
+{
+  "registry-mirrors": [
+    "https://mirror.aliyuncs.com",
+    "https://docker.m.daocloud.io",
+    "https://docker.nju.edu.cn",
+    "https://docker.mirrors.ustc.edu.cn",
+    "https://mirror.iscas.ac.cn",
+    "https://dockerproxy.com",
+    "https://hub-mirror.c.163.com"
+  ]
+}
+EOF
+   sudo systemctl daemon-reload
+   sudo systemctl restart docker
+   ```
+
+### 凭证提取失败
+
+如果在部署TeamSpeak服务器后无法自动提取凭证，请检查：
+1. TeamSpeak容器是否正常运行：`docker ps | grep teamspeak`
+2. 日志文件是否存在：`ls /var/lib/teamspeak/data/first_run.log`
+3. 日志文件中是否包含凭证信息：`cat /var/lib/teamspeak/data/first_run.log | grep -i password`
+
 ## 贡献指南
 1. Fork 本仓库
 2. 创建一个分支: `git checkout -b feature/xxx`

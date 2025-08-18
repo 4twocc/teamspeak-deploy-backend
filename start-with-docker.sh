@@ -78,34 +78,16 @@ configure_docker_registry() {
         sudo tee /etc/docker/daemon.json <<EOF
 {
   "registry-mirrors": [
-    "https://docker.registry.cyou",
-    "https://docker-cf.registry.cyou",
-    "https://dockercf.jsdelivr.fyi",
-    "https://docker.jsdelivr.fyi",
-    "https://dockertest.jsdelivr.fyi",
     "https://mirror.aliyuncs.com",
-    "https://dockerproxy.com",
-    "https://mirror.baidubce.com",
     "https://docker.m.daocloud.io",
     "https://docker.nju.edu.cn",
     "https://docker.mirrors.sjtug.sjtu.edu.cn",
     "https://docker.mirrors.ustc.edu.cn",
     "https://mirror.iscas.ac.cn",
-    "https://docker.rainbond.cc",
-    "https://do.nark.eu.org",
-    "https://dc.j8.work",
     "https://dockerproxy.com",
-    "https://gst6rzl9.mirror.aliyuncs.com",
-    "https://registry.docker-cn.com",
-    "http://hub-mirror.c.163.com",
-    "http://mirrors.ustc.edu.cn/",
-    "https://mirrors.tuna.tsinghua.edu.cn/",
-    "http://mirrors.sohu.com/"
+    "https://hub-mirror.c.163.com"
   ],
-  "insecure-registries": [
-    "registry.docker-cn.com",
-    "docker.mirrors.ustc.edu.cn"
-  ],
+  "insecure-registries": [],
   "debug": true,
   "experimental": false
 }
@@ -116,6 +98,9 @@ EOF
         tee /etc/docker/daemon.json <<EOF
 {
   "registry-mirrors": [
+    "https://docker.mirrors.ustc.edu.cn/",
+    "https://hub-mirror.c.163.com",
+    "https://registry.docker-cn.com",
     "https://docker.registry.cyou",
     "https://docker-cf.registry.cyou",
     "https://dockercf.jsdelivr.fyi",
@@ -265,6 +250,12 @@ if ! command -v docker &> /dev/null; then
     exit 1
 fi
 
+# 检查 Docker 是否正在运行
+if ! docker info &> /dev/null; then
+    print_error "Docker 服务未运行，请启动 Docker 服务"
+    exit 1
+fi
+    
 # 检查 Docker Compose 是否安装
 if command -v docker-compose &> /dev/null; then
     DOCKER_COMPOSE_CMD="docker-compose"
@@ -276,6 +267,9 @@ else
 fi
 
 print_success "Docker 环境检查通过"
+    
+# 测试 Docker 连接
+test_docker_connection
 
 # 配置 Docker 镜像源（如果需要）
 if [ "$CONFIGURE_REGISTRY" = true ]; then
@@ -286,6 +280,20 @@ fi
 if [ "$PNPM_SETUP" = true ]; then
     setup_pnpm
 fi
+
+# 添加一个新的函数用于测试Docker连接
+test_docker_connection() {
+    print_info "测试Docker连接..."
+    
+    # 尝试拉取一个小型镜像来测试连接
+    if docker pull hello-world:latest &> /dev/null; then
+        print_success "Docker连接测试成功"
+        # 清理测试镜像
+        docker rmi hello-world:latest &> /dev/null || true
+    else
+        print_warn "Docker连接测试失败，可能需要配置镜像源"
+    fi
+}
 
 # 检查环境变量文件
 ENV_FILES=(".env" ".env.development" ".env.production" "backend/.env" "backend/.env.development" "backend/.env.production")
