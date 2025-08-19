@@ -47,6 +47,53 @@ chmod +x ./init-env.sh ./open-ports.sh ./one-click.sh ./one-click-enhanced.sh 2>
     print_warn "警告: 无法设置脚本执行权限，请确保以适当权限运行此脚本"
 }
 
+# 检查并初始化环境变量文件
+check_env_files() {
+    print_info "检查环境变量文件..."
+    
+    # 检查主目录.env文件
+    if [ ! -f "../.env" ]; then
+        if [ -f "../backend/.env.example" ]; then
+            print_info "创建 .env 文件..."
+            cp ../backend/.env.example ../.env
+            print_success "已从 backend/.env.example 创建 .env"
+            
+            # 生成JWT_SECRET
+            print_info "生成JWT_SECRET..."
+            JWT_SECRET=$(openssl rand -base64 32 2>/dev/null || echo "your_generated_jwt_secret_here_replace_me")
+            sed -i.bak "s|your_jwt_secret_key_here|$JWT_SECRET|g" ../.env
+            rm -f ../.env.bak
+            
+            print_warn "请更新 .env 文件中的其他配置项，如 TEAMSPEAK_PASSWORD 等"
+        else
+            print_warn "未找到 backend/.env.example 文件，无法创建 .env"
+        fi
+    else
+        print_success ".env 文件已存在"
+    fi
+    
+    # 检查backend目录下的环境变量文件
+    if [ ! -f "../backend/.env" ]; then
+        if [ -f "../backend/.env.example" ]; then
+            print_info "创建 backend/.env 文件..."
+            cp ../backend/.env.example ../backend/.env
+            print_success "已从 backend/.env.example 创建 backend/.env"
+            
+            # 生成JWT_SECRET
+            print_info "生成JWT_SECRET..."
+            JWT_SECRET=$(openssl rand -base64 32 2>/dev/null || echo "your_generated_jwt_secret_here_replace_me")
+            sed -i.bak "s|your_jwt_secret_key_here|$JWT_SECRET|g" ../backend/.env
+            rm -f ../backend/.env.bak
+            
+            print_warn "请更新 backend/.env 文件中的其他配置项，如 TEAMSPEAK_PASSWORD 等"
+        else
+            print_warn "未找到 backend/.env.example 文件，无法创建 backend/.env"
+        fi
+    else
+        print_success "backend/.env 文件已存在"
+    fi
+}
+
 while true; do
     print_info "=================================="
     print_info "请选择您要执行的操作："
@@ -132,6 +179,11 @@ while true; do
             ;;
         6)
             print_info "开始执行所有增强版部署步骤..."
+            
+            # 步骤0: 检查并初始化环境变量文件
+            print_info "步骤0: 检查并初始化环境变量文件"
+            check_env_files
+            
             print_info "步骤1: 初始化环境"
             if sudo ./init-env.sh; then
                 print_success "环境初始化完成！"

@@ -43,6 +43,12 @@
    docker-compose -f docker-compose.dev.yml up -d
    ```
 
+4. 获取管理员凭证：
+   ```bash
+   # 查看TeamSpeak服务器管理员凭证
+   docker exec teamspeak_container_id cat /var/lib/teamspeak/data/first_run.log | grep -i password
+   ```
+
 4. 访问 Web 界面：
    - 前端: http://localhost
    - API: http://localhost:8080
@@ -62,6 +68,18 @@
    - 用途: 签名和验证用户认证 token
    - 生成安全密钥: `openssl rand -base64 32`
 
+3. **TeamSpeak Server Query API Key**
+   - 环境变量: `TEAMSPEAK_SERVER_QUERY_APIKEY`
+   - 用途: 用于访问TeamSpeak Server Query API的API密钥
+
+4. **TeamSpeak Server Admin Token**
+   - 环境变量: `TEAMSPEAK_SERVER_ADMIN_TOKEN`
+   - 用途: 用于获取管理员权限的令牌
+
+5. **TeamSpeak Server Admin Username**
+   - 环境变量: `TEAMSPEAK_SERVER_ADMIN_USERNAME`
+   - 用途: TeamSpeak服务器管理员用户名
+
 ### 配置方法
 
 1. 复制示例环境变量文件：
@@ -76,6 +94,14 @@
    ```bash
    TEAMSPEAK_PASSWORD=your_actual_teamspeak_password
    JWT_SECRET=your_actual_jwt_secret
+   TEAMSPEAK_SERVER_QUERY_APIKEY=your_actual_api_key
+   TEAMSPEAK_SERVER_ADMIN_TOKEN=your_actual_admin_token
+   TEAMSPEAK_SERVER_ADMIN_USERNAME=serveradmin
+   ```
+
+3. 生成安全的JWT密钥：
+   ```bash
+   openssl rand -base64 32
    ```
 
 ## API 文档
@@ -107,7 +133,7 @@ API 文档可通过 `/api/docs` 端点访问。
 
 ### 后端开发
 
-1. 安装 Go 1.24+
+1. 安装 Go 1.24.3+
 2. 安装依赖: `go mod tidy`
 3. 运行服务: `go run main.go`
 

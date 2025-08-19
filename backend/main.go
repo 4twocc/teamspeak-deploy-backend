@@ -10,16 +10,9 @@ import (
 	"teamspeak-one-click-deploy/monitor"
 	"teamspeak-one-click-deploy/server"
 	"teamspeak-one-click-deploy/users"
-
-	"github.com/joho/godotenv"
 )
 
 func main() {
-	// Load environment variables from .env file
-	if err := godotenv.Load(); err != nil {
-		log.Printf("Warning: failed to load .env file: %v", err)
-	}
-
 	// Load configuration
 	cfg, err := config.Load("config.yaml")
 	if err != nil {
