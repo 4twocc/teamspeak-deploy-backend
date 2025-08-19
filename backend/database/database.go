@@ -41,11 +41,42 @@ func Init(config *Config) error {
 	case "sqlite":
 		// 确保目录存在
 		dir := filepath.Dir(config.DSN)
-		if dir != "." && dir != "/" {
-			if err := os.MkdirAll(dir, 0755); err != nil {
-				return fmt.Errorf("failed to create database directory: %v", err)
+
+		// 如果是相对路径，转换为绝对路径
+		if !filepath.IsAbs(config.DSN) {
+			wd, err := os.Getwd()
+			if err != nil {
+				return fmt.Errorf("failed to get current working directory: %v", err)
+			}
+			absPath := filepath.Join(wd, config.DSN)
+			dir = filepath.Dir(absPath)
+
+			// 确保目录存在，使用更宽松的权限
+			if err := os.MkdirAll(dir, 0777); err != nil {
+				return fmt.Errorf("failed to create database directory '%s': %v", dir, err)
+			}
+
+			// 更新DSN为绝对路径
+			config.DSN = absPath
+		} else {
+			// 对于绝对路径，确保目录存在，使用更宽松的权限
+			if err := os.MkdirAll(dir, 0777); err != nil {
+				return fmt.Errorf("failed to create database directory '%s': %v", dir, err)
 			}
 		}
+
+		// 确保数据库文件存在或者可以被创建
+		if _, err := os.Stat(config.DSN); os.IsNotExist(err) {
+			// 直接创建数据库文件
+			file, err := os.OpenFile(config.DSN, os.O_CREATE|os.O_WRONLY, 0666)
+			if err != nil {
+				// 获取更多错误信息
+				stat, _ := os.Stat(dir)
+				return fmt.Errorf("failed to create database file '%s': %v. Directory info: %+v", config.DSN, err, stat)
+			}
+			file.Close()
+		}
+
 		dialector = sqlite.Open(config.DSN)
 	default:
 		return fmt.Errorf("unsupported database driver: %s", config.Driver)

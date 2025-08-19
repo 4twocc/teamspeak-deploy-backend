@@ -8,7 +8,7 @@ services:
     volumes:
       - ./backend/config.yaml:/app/config.yaml
       - ./backend/.env:/app/.env
-      - ./backend/data:/app/data
+      - backend_data:/app/data
     restart: unless-stopped
     environment:
       - SERVER_ENV=production
@@ -45,3 +45,4 @@ services:
 
 volumes:
   redis_data:
+  backend_data:
