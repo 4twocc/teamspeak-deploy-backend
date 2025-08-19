@@ -12,7 +12,7 @@
 
 ### 1. 增强版部署脚本
 
-增强版部署脚本 `one-click-enhanced.sh` 在部署 TeamSpeak 服务后会自动从日志中提取凭证并保存到 `.env` 文件中。
+增强版部署脚本 `deploy.sh` 在部署 TeamSpeak 服务后会自动从日志中提取凭证并保存到 `.env` 文件中。
 
 ### 2. 独立的凭证提取工具
 
@@ -25,20 +25,26 @@ Go 程序 `extract_teamspeak_creds.go` 可以独立运行，从指定的日志�
 1. 运行主部署脚本：
    ```bash
    cd deploy-scripts
-   ./teamspeak-one-click-deploy.sh
+   ./deploy.sh
    ```
 
-2. 选择选项 6: "执行所有步骤（增强版，推荐用于首次部署）"
+2. 选择选项 6: "执行所有步骤（增强版，首次部署推荐）"
+
+或者使用命令行方式：
+```bash
+cd deploy-scripts
+./deploy.sh all-enhanced
+```
 
 这将自动执行环境初始化、端口开放和增强版部署，部署完成后会自动提取并保存凭证。
 
 ### 方法二：手动运行增强版脚本
 
-如果您已经完成了环境初始化和端口开放，可以直接运行增强版部署脚本：
+如果您已经完成了环境初始化和端口开放，可以直接运行增强版部署命令：
 
 ```bash
 cd deploy-scripts
-./one-click-enhanced.sh
+./deploy.sh deploy-enhanced
 ```
 
 ### 方法三：使用独立的凭证提取工具
@@ -47,7 +53,13 @@ cd deploy-scripts
 
 ```bash
 cd backend
-go run extract_teamspeak_creds.go /var/lib/teamspeak/data/first_run.log
+go run ../deploy-scripts/extract_teamspeak_creds.go /var/lib/teamspeak/data/first_run.log
+```
+
+或者使用 deploy.sh 脚本中的凭证提取功能：
+```bash
+cd deploy-scripts
+./deploy.sh extract-creds
 ```
 
 ## 凭证提取原理

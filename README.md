@@ -129,6 +129,56 @@ API 文档可通过 `/api/docs` 端点访问。
 └── docker-compose.yml
 ```
 
+## 部署脚本
+
+项目包含以下部署脚本：
+
+```bash
+deploy-scripts/
+├── deploy.sh                 # 统一部署脚本（推荐使用）
+├── init-env.sh              # 环境初始化脚本
+├── open-ports.sh            # 端口开放脚本
+├── cleanup.sh               # 清理脚本
+├── Dockerfile               # TeamSpeak Docker 镜像构建文件
+├── entrypoint.sh            # TeamSpeak 容器入口点脚本
+├── extract_teamspeak_creds.go # 凭证提取工具（Go程序）
+└── AUTOMATIC_CREDENTIAL_EXTRACTION.md # 凭证自动提取说明文档
+```
+
+### 使用方法
+
+推荐使用统一的部署脚本：
+
+```bash
+# 交互式使用
+cd deploy-scripts
+./deploy.sh
+
+# 命令行使用
+cd deploy-scripts
+./deploy.sh all-enhanced  # 执行完整的增强部署（包括凭证提取）
+```
+
+### 脚本功能说明
+
+1. **deploy.sh**: 统一部署脚本，包含以下子命令：
+   - `init`: 初始化环境（安装Docker等）
+   - `ports`: 开放所需端口
+   - `deploy`: 部署TeamSpeak服务
+   - `deploy-enhanced`: 增强版部署（包含凭证提取）
+   - `cleanup`: 清理部署环境
+   - `extract-creds`: 从日志中提取凭证
+   - `all`: 执行所有基本步骤
+   - `all-enhanced`: 执行所有增强步骤（推荐用于首次部署）
+
+2. **init-env.sh**: 环境初始化脚本，用于安装Docker等依赖
+
+3. **open-ports.sh**: 端口开放脚本，用于开放TeamSpeak所需端口
+
+4. **cleanup.sh**: 清理脚本，用于停止和删除TeamSpeak服务
+
+5. **extract_teamspeak_creds.go**: 独立的凭证提取工具，可以用Go直接运行
+
 ## 开发指南
 
 ### 后端开发
