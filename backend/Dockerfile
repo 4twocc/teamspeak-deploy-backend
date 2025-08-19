@@ -12,10 +12,10 @@ RUN go mod download
 RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories
 
 # 安装gcc、musl-dev、sqlite-dev和upx以支持CGO和二进制压缩
-RUN apk add --no-cache gcc musl-dev sqlite-dev upx
+RUN apk add --no-cache gcc g++ musl-dev make sqlite sqlite-dev upx
 
-# 启用CGO以支持SQLite并使用优化参数
-RUN CGO_ENABLED=1 GOOS=linux go build -ldflags="-s -w" -o teamspeak-backend .
+# 使用 go-sqlite3 推荐的 build tag，避免 load_extension 问题
+RUN CGO_ENABLED=1 GOOS=linux go build -tags 'sqlite_omit_load_extension libsqlite3' -ldflags="-s -w" -o teamspeak-backend .
 
 # 使用UPX压缩二进制文件
 RUN upx --best --lzma teamspeak-backend
@@ -23,7 +23,7 @@ RUN upx --best --lzma teamspeak-backend
 FROM alpine:latest AS production
 # 使用国内镜像源替换默认源
 RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories
-RUN apk --no-cache add ca-certificates tzdata sqlite-libs
+RUN apk --no-cache add sqlite-libs ca-certificates tzdata
 WORKDIR /app
 
 # 从builder阶段复制二进制文件
