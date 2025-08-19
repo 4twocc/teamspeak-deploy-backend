@@ -40,8 +40,11 @@ func Init(config *Config) error {
 		dialector = postgres.Open(config.DSN)
 	case "sqlite":
 		// 确保目录存在
-		if err := os.MkdirAll(filepath.Dir(config.DSN), 0755); err != nil {
-			return fmt.Errorf("failed to create database directory: %v", err)
+		dir := filepath.Dir(config.DSN)
+		if dir != "." && dir != "/" {
+			if err := os.MkdirAll(dir, 0755); err != nil {
+				return fmt.Errorf("failed to create database directory: %v", err)
+			}
 		}
 		dialector = sqlite.Open(config.DSN)
 	default:
