@@ -8,6 +8,9 @@ COPY . .
 RUN go env -w GOPROXY=https://goproxy.cn,direct
 RUN go mod download
 
+# 使用国内镜像源替换默认源，解决 apk add 卡住的问题
+RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories
+
 # 安装gcc、musl-dev和upx以支持CGO和二进制压缩
 RUN apk add --no-cache gcc musl-dev upx
 
@@ -18,6 +21,8 @@ RUN CGO_ENABLED=1 GOOS=linux go build -ldflags="-s -w" -o teamspeak-backend .
 RUN upx --best --lzma teamspeak-backend
 
 FROM alpine:latest AS production
+# 使用国内镜像源替换默认源
+RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories
 RUN apk --no-cache add ca-certificates tzdata
 WORKDIR /app
 
