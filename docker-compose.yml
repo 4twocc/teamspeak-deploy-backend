@@ -15,7 +15,7 @@ services:
       - TEAMSPEAK_PASSWORD=${TEAMSPEAK_PASSWORD}
       - JWT_SECRET=${JWT_SECRET}
       - TEAMSPEAK_SERVER_QUERY_APIKEY=${TEAMSPEAK_SERVER_QUERY_APIKEY}
-      - TEAMSPEAK_SERVER_ADMIN_TOEKN=${TEAMSPEAK_SERVER_ADMIN_TOEKN}
+      - TEAMSPEAK_SERVER_ADMIN_TOKEN=${TEAMSPEAK_SERVER_ADMIN_TOKEN}
       - TEAMSPEAK_SERVER_ADMIN_USERNAME=${TEAMSPEAK_SERVER_ADMIN_USERNAME}
     depends_on:
       - redis
@@ -49,7 +49,3 @@ services:
       - '--path.procfs=/host/proc'
       - '--path.sysfs=/host/sys'
       - '--collector.filesystem.ignored-mount-points=^/(sys|proc|dev|host|etc)($$|/)'
-    restart: unless-stopped
-
-volumes:
-  redis_data:
