@@ -11,11 +11,18 @@ RUN go mod download
 # 使用国内镜像源替换默认源，解决 apk add 卡住的问题
 RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories
 
-# 安装gcc、musl-dev和upx以支持CGO和二进制压缩
-RUN apk add --no-cache gcc musl-dev upx
+# 安装gcc、musl-dev、sqlite-dev和upx以支持CGO和二进制压缩
+RUN apk add --no-cache gcc musl-dev sqlite-dev upx
+
+# 设置 CGO 环境变量以解决 SQLite3 在 Alpine Linux 上的编译问题
+ENV CGO_ENABLED=1
+ENV GOOS=linux
+ENV CGO_LDFLAGS="-lm -lsqlite3"
+ENV CGO_CFLAGS="-DSQLITE_ENABLE_FTS5 -DSQLITE_ENABLE_RTREE -DSQLITE_ENABLE_JSON1 -DSQLITE_OMIT_DEPRECATED -D_LARGEFILE64_SOURCE"
 
 # 启用CGO以支持SQLite并使用优化参数
-RUN CGO_ENABLED=1 GOOS=linux go build -ldflags="-s -w" -o teamspeak-backend .
+# 使用 libsqlite3 标记强制使用系统 SQLite 库
+RUN go build -ldflags="-s -w" -tags "libsqlite3" -o teamspeak-backend .
 
 # 使用UPX压缩二进制文件
 RUN upx --best --lzma teamspeak-backend
