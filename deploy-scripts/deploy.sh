@@ -414,20 +414,24 @@ extract_credentials() {
         print_debug "$line"
     done < "$log_file"
     
-    # 提取serveradmin密码 - 使用更广泛的匹配模式
-    # TeamSpeak日志中密码可能出现在不同的格式中
+    # 提取serveradmin密码 - 使用更准确的匹配模式
+    # 根据日志格式: loginname= "serveradmin", password= "SMosqPYh"
     password=""
     
-    # 尝试多种模式提取密码
-    # 模式1: 查找"serveradmin password="格式
-    password=$(grep -i "serveradmin password=" "$log_file" | sed -E 's/.*serveradmin password=([^ ]+).*/\1/' | head -1)
+    # 查找包含loginname= "serveradmin"的行，并提取password值
+    password=$(grep -i 'loginname= "serveradmin"' "$log_file" | sed -E 's/.*password= "([^"]+)".*/\1/' | head -1)
     
-    # 模式2: 查找单独的password=模式
+    # 如果上面的方法失败，尝试其他模式
+    if [ -z "$password" ]; then
+        password=$(grep -i "serveradmin password=" "$log_file" | sed -E 's/.*serveradmin password=([^ ]+).*/\1/' | head -1)
+    fi
+    
+    # 如果仍然失败，尝试更通用的模式
     if [ -z "$password" ]; then
         password=$(grep -E "password=[^ ]+" "$log_file" | grep -v "permissions|database|file|config" | sed -E 's/.*password=([^ ]+).*/\1/' | head -1)
     fi
     
-    # 模式3: 更宽松的匹配模式
+    # 最后尝试更宽松的匹配模式
     if [ -z "$password" ]; then
         password=$(grep -i "password" "$log_file" | grep -v "permissions|database|file|config" | sed -E 's/.*[pP]assword[=: ]*([^ \t\n\r]+).*/\1/' | head -1)
     fi
@@ -440,11 +444,20 @@ extract_credentials() {
     
     print_info "成功提取密码"
     
-    # 提取API key（如果存在）- 使用更准确的匹配
-    api_key=$(grep -E 'API key:\s*\S+' "$log_file" | sed -E 's/.*API key:\s*(\S+).*/\1/' | head -1)
+    # 提取API key（如果存在）
+    # 根据日志格式: apikey= "BABAnVMsu45gFqlHsvLxc3NhnaSFRXPN4ZCcl8q"
+    api_key=$(grep -E 'apikey=\s*"[^"]+"' "$log_file" | sed -E 's/.*apikey=\s*"([^"]+)".*/\1/' | head -1)
+    if [ -z "$api_key" ]; then
+        api_key=$(grep -E 'API key:\s*(\S+)' "$log_file" | sed -E 's/.*API key:\s*(\S+).*/\1/' | head -1)
+    fi
     
-    # 提取token（如果存在）- 使用更准确的匹配
-    token=$(grep -E 'token=[^\s]*' "$log_file" | sed -E 's/.*token=([^\s]+).*/\1/' | head -1)
+    # 提取token（如果存在）
+    # 根据日志格式: token=Lkvfu5Pyls6jjmBWwcHR3vWGdY8E4r2uymvMkoKR
+    # 使用更准确的正则表达式提取完整token
+    token=$(grep -E 'token=[A-Za-z0-9+/=]+' "$log_file" | head -1 | sed -E 's/.*token=([A-Za-z0-9+/=]+).*/\1/')
+    
+    print_info "API key: ${api_key:-"未找到"}"
+    print_info "Token: ${token:-"未找到"}"
     
     # 备份现有的.env文件（如果存在）
     if [ -f "$env_file" ]; then
