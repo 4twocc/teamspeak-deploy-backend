@@ -9,7 +9,7 @@ import (
 // API路径常量定义
 const (
 	// 基础路径
-	APIBasePath = "api"
+	APIBasePath = "/api"
 
 	// 基础API路径
 	PingPath = APIBasePath + "/ping"
