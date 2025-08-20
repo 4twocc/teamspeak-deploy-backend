@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+	"strconv"
 	"time"
 
 	"gopkg.in/yaml.v3"
@@ -67,13 +68,13 @@ type DatabaseConfig struct {
 
 // MonitoringConfig 监控配置
 type MonitoringConfig struct {
-	Addr                  string        `yaml:"addr"`
-	CollectInterval       time.Duration `yaml:"collect_interval"`
-	MinCollectionInterval time.Duration `yaml:"min_collection_interval"`
-	Alert                 AlertConfig   `yaml:"alert"`
-	System                SystemConfig  `yaml:"system"`
+	Addr                  string            `yaml:"addr"`
+	CollectInterval       time.Duration     `yaml:"collect_interval"`
+	MinCollectionInterval time.Duration     `yaml:"min_collection_interval"`
+	Alert                 AlertConfig       `yaml:"alert"`
+	System                SystemConfig      `yaml:"system"`
 	Performance           PerformanceConfig `yaml:"performance"`
-	Redis                 RedisConfig   `yaml:"redis"`
+	Redis                 RedisConfig       `yaml:"redis"`
 }
 
 // SystemConfig 系统监控配置
@@ -89,19 +90,19 @@ type SystemConfig struct {
 type PerformanceConfig struct {
 	// 系统指标采样率 (1/N 的频率收集)
 	SystemSampleRate int `yaml:"system_sample_rate"`
-	
+
 	// 业务指标采样率 (1/N 的频率收集)
 	BusinessSampleRate int `yaml:"business_sample_rate"`
-	
+
 	// 历史记录最大数量
 	MaxHistorySize int `yaml:"max_history_size"`
-	
+
 	// 收集后延迟时间
 	CollectionDelay time.Duration `yaml:"collection_delay"`
-	
+
 	// 函数间延迟时间
 	InterFuncDelay time.Duration `yaml:"inter_func_delay"`
-	
+
 	// 函数内延迟时间
 	InnerFuncDelay time.Duration `yaml:"inner_func_delay"`
 }
@@ -178,6 +179,17 @@ func loadSensitiveConfigFromEnv(config *Config) {
 	// 从环境变量加载 TeamSpeak 密码
 	if tsPassword := os.Getenv("TEAMSPEAK_PASSWORD"); tsPassword != "" {
 		config.Teamspeak.Password = tsPassword
+	}
+
+	// 从环境变量加载 TeamSpeak 主机和端口
+	if tsHost := os.Getenv("TEAMSPEAK_HOST"); tsHost != "" {
+		config.Teamspeak.Host = tsHost
+	}
+
+	if tsPort := os.Getenv("TEAMSPEAK_QUERY_PORT"); tsPort != "" {
+		if p, err := strconv.Atoi(tsPort); err == nil {
+			config.Teamspeak.QueryPort = p
+		}
 	}
 
 	// 从环境变量加载 JWT secret
