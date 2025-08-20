@@ -26,6 +26,7 @@ func RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc(api.MonitorBusinessPath, businessMonitorHandler)
 	mux.HandleFunc(api.MonitorHistoryPath, historyMonitorHandler)
 	mux.HandleFunc(api.MonitorStatsPath, statusHandler)
+	mux.HandleFunc(api.MonitorHealthPath, healthHandler)
 	mux.HandleFunc(api.RedisHealthPath, redisHealthHandler)
 	mux.Handle(api.MonitorMetricsPath, metricsHandler())
 }
@@ -376,6 +377,31 @@ func statusHandler(w http.ResponseWriter, r *http.Request) {
 
 	// 返回 JSON 响应
 	utils.OK(w, status)
+}
+
+// healthHandler 处理健康检查请求
+func healthHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		utils.Fail(w, http.StatusMethodNotAllowed, utils.ErrMethodNotAllowed, utils.ErrorMessage(utils.ErrMethodNotAllowed))
+		return
+	}
+
+	// 创建健康检查响应
+	health := map[string]interface{}{
+		"status":    "healthy",
+		"timestamp": time.Now(),
+	}
+
+	// 检查Redis健康状态
+	redisHealth := CheckRedisHealth()
+	if redisHealth["status"] == "ok" {
+		health["redis"] = "connected"
+	} else {
+		health["redis"] = "disconnected"
+	}
+
+	// 返回 JSON 响应
+	utils.OK(w, health)
 }
 
 // metricsHandler 处理 Prometheus 指标请求

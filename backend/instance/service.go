@@ -36,6 +36,48 @@ type Service struct {
 	alertManager   *AlertManager
 }
 
+// CreateInstanceInput 创建实例的输入参数
+type CreateInstanceInput struct {
+	Name               string `json:"name" validate:"required,min=3,max=100"`
+	Version            string `json:"version" validate:"required"`
+	Host               string `json:"host" validate:"required,hostname|ip"`
+	ServerName         string `json:"server_name" validate:"required,min=3,max=255"`
+	WelcomeMsg         string `json:"welcome_msg"`
+	MaxClients         int    `json:"max_clients" validate:"min=1,max=1024"`
+	VoicePort          int    `json:"voice_port" validate:"min=1,max=65535"`
+	FilePort           int    `json:"file_port" validate:"min=1,max=65535"`
+	QueryPort          int    `json:"query_port" validate:"min=1,max=65535"`
+	ServerPort         int    `json:"server_port" validate:"min=1,max=65535"`
+	QueryAdminPassword string `json:"query_admin_password" validate:"required,min=8"`
+	ServerAdminToken   string `json:"server_admin_token"`
+	LogQueries         bool   `json:"log_queries"`
+	LogClientCmds      bool   `json:"log_client_cmds"`
+}
+
+// UpdateInstanceInput 更新实例的输入参数
+type UpdateInstanceInput struct {
+	Name       string `json:"name" validate:"omitempty,min=3,max=100"`
+	Version    string `json:"version" validate:"omitempty"`
+	ServerName string `json:"server_name" validate:"omitempty,min=3,max=255"`
+	WelcomeMsg string `json:"welcome_msg"`
+	MaxClients int    `json:"max_clients" validate:"omitempty,min=1,max=1024"`
+}
+
+// InstanceFilter 实例查询过滤器
+type InstanceFilter struct {
+	Name     string `form:"name"`
+	Status   string `form:"status"`
+	Page     int    `form:"page,default=1"`
+	PageSize int    `form:"page_size,default=10"`
+}
+
+// RestartConfig 重启配置
+type RestartConfig struct {
+	ID            string    `gorm:"primary_key"`
+	RestartCount  int       `gorm:"default:0"`
+	LastRestartAt time.Time `gorm:"default:NULL"`
+}
+
 // NewService 创建新的实例服务
 func NewService(db *gorm.DB, alertManager *AlertManager) *Service {
 	service := &Service{
@@ -940,24 +982,6 @@ func (s *Service) GetInstanceResources(ctx context.Context, id string) (*Resourc
 	return usage, nil
 }
 
-// CreateInstanceInput 创建实例的输入参数
-type CreateInstanceInput struct {
-	Name               string `json:"name" validate:"required,min=3,max=100"`
-	Version            string `json:"version" validate:"required"`
-	Host               string `json:"host" validate:"required,hostname|ip"`
-	ServerName         string `json:"server_name" validate:"required,min=3,max=255"`
-	WelcomeMsg         string `json:"welcome_msg"`
-	MaxClients         int    `json:"max_clients" validate:"min=1,max=1024"`
-	VoicePort          int    `json:"voice_port" validate:"min=1,max=65535"`
-	FilePort           int    `json:"file_port" validate:"min=1,max=65535"`
-	QueryPort          int    `json:"query_port" validate:"min=1,max=65535"`
-	ServerPort         int    `json:"server_port" validate:"min=1,max=65535"`
-	QueryAdminPassword string `json:"query_admin_password" validate:"required,min=8"`
-	ServerAdminToken   string `json:"server_admin_token"`
-	LogQueries         bool   `json:"log_queries"`
-	LogClientCmds      bool   `json:"log_client_cmds"`
-}
-
 // Validate 验证输入参数
 func (i *CreateInstanceInput) Validate() error {
 	// 设置默认值
@@ -995,15 +1019,6 @@ func (i *CreateInstanceInput) Validate() error {
 	return nil
 }
 
-// UpdateInstanceInput 更新实例的输入参数
-type UpdateInstanceInput struct {
-	Name       string `json:"name" validate:"omitempty,min=3,max=100"`
-	Version    string `json:"version" validate:"omitempty"`
-	ServerName string `json:"server_name" validate:"omitempty,min=3,max=255"`
-	WelcomeMsg string `json:"welcome_msg"`
-	MaxClients int    `json:"max_clients" validate:"omitempty,min=1,max=1024"`
-}
-
 // Validate 验证更新参数
 func (i *UpdateInstanceInput) Validate() error {
 	// 至少需要一个更新字段
@@ -1011,14 +1026,6 @@ func (i *UpdateInstanceInput) Validate() error {
 		return errors.New("at least one field must be provided for update")
 	}
 	return nil
-}
-
-// InstanceFilter 实例查询过滤器
-type InstanceFilter struct {
-	Name     string `form:"name"`
-	Status   string `form:"status"`
-	Page     int    `form:"page,default=1"`
-	PageSize int    `form:"page_size,default=10"`
 }
 
 // Apply 应用过滤器
@@ -1038,11 +1045,4 @@ func (f *InstanceFilter) Apply(tx *gorm.DB) *gorm.DB {
 	}
 
 	return tx
-}
-
-// RestartConfig 重启配置
-type RestartConfig struct {
-	ID            string    `gorm:"primary_key"`
-	RestartCount  int       `gorm:"default:0"`
-	LastRestartAt time.Time `gorm:"default:NULL"`
 }
