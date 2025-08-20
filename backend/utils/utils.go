@@ -6,11 +6,16 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
+	"os"
+	"path/filepath"
 	"slices"
+	"sort"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
 )
 
 // APIResponse 统一的HTTP响应结构
@@ -131,4 +136,55 @@ func MapToQueryString(params map[string]string) string {
 		query += k + "=" + v + "&"
 	}
 	return query[:len(query)-1] // 移除最后一个 &
+}
+
+// discoverAndLoadDotEnv 搜索并加载项目根目录下的 .env 文件。
+// 优先级：.env, .env.local, .env.docker, 然后按字典顺序加载所有 .env.* 文件（排除 .env.example）。
+func DiscoverAndLoadDotEnv() error {
+	// 在工作目录查找 .env 文件
+	cwd, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+
+	patterns := []string{
+		".env",
+		".env.local",
+		".env.docker",
+		".env.release",
+		".env.production",
+	}
+
+	var toLoad []string
+	for _, p := range patterns {
+		fp := filepath.Join(cwd, p)
+		if _, err := os.Stat(fp); err == nil {
+			toLoad = append(toLoad, fp)
+		}
+	}
+
+	// 查找 .env.* 文件，但排除 .env.example
+	matches, _ := filepath.Glob(filepath.Join(cwd, ".env.*"))
+	sort.Strings(matches)
+	for _, m := range matches {
+		base := filepath.Base(m)
+		if base == ".env.example" {
+			continue
+		}
+		toLoad = append(toLoad, m)
+	}
+
+	if len(toLoad) == 0 {
+		return fmt.Errorf("no .env files found")
+	}
+
+	// 使用 godotenv.Load 逐个加载（后加载的会覆盖前面的）
+	for _, f := range toLoad {
+		if err := godotenv.Overload(f); err != nil {
+			return err
+		}
+		log.Printf("Loaded env file: %s", f)
+	}
+
+	return nil
 }

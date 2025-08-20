@@ -11,13 +11,19 @@ import (
 	"github.com/multiplay/go-ts3"
 )
 
-// promReconnectsTotal is defined in collector.go
-
 type TeamSpeakClient struct {
 	client *ts3.Client
 	config configPkg.TeamspeakConfig
 	ctx    context.Context
 	cancel context.CancelFunc
+}
+
+// ServerInfo contains information about the TeamSpeak server
+type ServerInfo struct {
+	OnlineUsers  int           `json:"online_users"`
+	ChannelCount int           `json:"channel_count"`
+	Uptime       time.Duration `json:"uptime"`
+	VoiceQuality float64       `json:"voice_quality"` // 0-100 scale
 }
 
 // NewTeamSpeakClient creates a new TeamSpeak client with the given configuration
@@ -103,7 +109,7 @@ func (c *TeamSpeakClient) ensureConnected() error {
 	var lastErr error
 	backoff := initialBackoff
 
-	for attempt := 0; attempt < maxRetries; attempt++ {
+	for attempt := range maxRetries {
 		if err := c.connect(); err != nil {
 			lastErr = err
 			log.Printf("Reconnect attempt %d failed: %v", attempt+1, err)
@@ -147,12 +153,4 @@ func (c *TeamSpeakClient) GetServerInfo() (*ServerInfo, error) {
 	}
 
 	return info, nil
-}
-
-// ServerInfo contains information about the TeamSpeak server
-type ServerInfo struct {
-	OnlineUsers  int           `json:"online_users"`
-	ChannelCount int           `json:"channel_count"`
-	Uptime       time.Duration `json:"uptime"`
-	VoiceQuality float64       `json:"voice_quality"` // 0-100 scale
 }

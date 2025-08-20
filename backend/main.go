@@ -3,6 +3,7 @@ package main
 
 import (
 	"log"
+	"os"
 
 	"teamspeak-one-click-deploy/config"
 	"teamspeak-one-click-deploy/database"
@@ -10,9 +11,17 @@ import (
 	"teamspeak-one-click-deploy/monitor"
 	"teamspeak-one-click-deploy/server"
 	"teamspeak-one-click-deploy/users"
+	"teamspeak-one-click-deploy/utils"
+
+	"github.com/gin-gonic/gin"
 )
 
 func main() {
+	// 先尝试加载 .env 文件（如果存在），使得 os.Getenv 能读取这些值
+	if err := utils.DiscoverAndLoadDotEnv(); err != nil {
+		log.Printf("No .env files loaded: %v", err)
+	}
+
 	// Load configuration
 	cfg, err := config.Load("config.yaml")
 	if err != nil {
@@ -57,6 +66,12 @@ func main() {
 	}()
 
 	// 创建并配置路由引擎
+	// 根据环境变量设置 gin 模式（优先使用 GIN_MODE）
+	if ginMode := os.Getenv("GIN_MODE"); ginMode != "" {
+		gin.SetMode(ginMode)
+		log.Printf("Applied GIN_MODE=%s", ginMode)
+	}
+
 	routerEngine, err := server.SetupRouter(cfg)
 	if err != nil {
 		log.Fatalf("Failed to setup router: %v", err)

@@ -11,12 +11,15 @@ services:
       - ./backend/data:/app/data
     restart: unless-stopped
     environment:
+      - GIN_MODE=release
       - SERVER_ENV=production
       - TEAMSPEAK_PASSWORD=${TEAMSPEAK_PASSWORD}
       - JWT_SECRET=${JWT_SECRET}
       - TEAMSPEAK_SERVER_QUERY_APIKEY=${TEAMSPEAK_SERVER_QUERY_APIKEY}
       - TEAMSPEAK_SERVER_ADMIN_TOKEN=${TEAMSPEAK_SERVER_ADMIN_TOKEN}
       - TEAMSPEAK_SERVER_ADMIN_USERNAME=${TEAMSPEAK_SERVER_ADMIN_USERNAME}
+    env_file:
+      - ./backend/.env
     depends_on:
       - redis
 
