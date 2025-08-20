@@ -17,6 +17,7 @@ services:
       - ./backend:/app
       - /app/go.mod
       - /app/go.sum
+      - backend_data:/app/data
     depends_on:
       - redis
     restart: unless-stopped
@@ -49,3 +50,4 @@ services:
 
 volumes:
   redis_data:
+  backend_data:

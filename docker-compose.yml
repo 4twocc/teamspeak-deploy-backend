@@ -8,7 +8,7 @@ services:
     volumes:
       - ./backend/config.yaml:/app/config.yaml
       - ./backend/.env:/app/.env
-      - ./backend/data:/app/data
+      - backend_data:/app/data
     restart: unless-stopped
     environment:
       - GIN_MODE=release
@@ -41,7 +41,7 @@ services:
       - "10011:10011/tcp"
       - "30033:30033/tcp"
     volumes:
-      - /var/lib/teamspeak/data:/var/ts3server
+      - teamspeak_data:/var/ts3server
     environment:
       - TS3SERVER_LICENSE=accept
     restart: unless-stopped
@@ -68,4 +68,5 @@ services:
 
 volumes:
   redis_data:
-  # backend_data removed in favour of a bind mount to ./backend/data
+  backend_data:
+  teamspeak_data:
