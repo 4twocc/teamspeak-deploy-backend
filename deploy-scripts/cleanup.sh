@@ -48,7 +48,13 @@ if docker ps -a --format '{{.Names}}' | grep -q '^teamspeak-main$'; then
     print_warn "Removing TeamSpeak container..."
     docker rm teamspeak-main || true
 else
-    print_error "No TeamSpeak container found"
+    print_info "No TeamSpeak container found"
+fi
+
+# 停止并删除所有通过docker compose启动的服务
+if [ -f "docker-compose.yml" ]; then
+    print_info "Stopping services via docker compose..."
+    docker compose down || true
 fi
 
 # 删除数据目录（可选，用户可以选择保留数据）

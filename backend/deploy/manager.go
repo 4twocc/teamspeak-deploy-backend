@@ -44,7 +44,8 @@ func (dm *DeploymentManager) GetContainerStatus() (map[string]any, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, "docker", "ps", "--format", "table {{.Names}}\\t{{.Status}}\\t{{.Ports}}")
+	// 使用 docker compose ps 命令获取容器状态
+	cmd := exec.CommandContext(ctx, "docker", "compose", "ps", "--format", "table {{.Names}}\\t{{.Status}}\\t{{.Ports}}")
 	output, err := cmd.Output()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get container status: %w", err)
@@ -98,18 +99,114 @@ func (dm *DeploymentManager) ExecuteScript(scriptName string) error {
 }
 
 func (dm *DeploymentManager) Deploy() error {
-	scriptPath := fmt.Sprintf("%s/one-click.sh", dm.scriptDir)
-	return dm.ExecuteScript(scriptPath)
+	// 检查Docker是否可用
+	if !dm.IsDockerAvailable() {
+		return fmt.Errorf("docker is not available")
+	}
+
+	// 构建脚本路径
+	scriptPath := fmt.Sprintf("%s/deploy.sh", dm.scriptDir)
+	
+	// 检查脚本文件是否存在
+	if _, err := os.Stat(scriptPath); os.IsNotExist(err) {
+		return fmt.Errorf("script %s not found", scriptPath)
+	}
+
+	// 设置执行上下文和超时
+	ctx, cancel := context.WithTimeout(context.Background(), dm.timeout)
+	defer cancel()
+
+	// 创建命令，执行deploy.sh脚本的deploy命令
+	cmd := exec.CommandContext(ctx, "bash", scriptPath, "deploy")
+
+	// 设置工作目录为脚本目录
+	cmd.Dir = dm.scriptDir
+
+	// 捕获输出
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("failed to execute deploy script: %w\nOutput: %s", err, string(output))
+	}
+
+	// 记录成功执行日志
+	log.Printf("Successfully executed deploy script")
+	log.Printf("Script output: %s", strings.TrimSpace(string(output)))
+
+	return nil
 }
 
 // InitEnvironment 初始化环境
 func (dm *DeploymentManager) InitEnvironment() error {
+	// 检查Docker是否可用
+	if !dm.IsDockerAvailable() {
+		return fmt.Errorf("docker is not available")
+	}
+
+	// 构建脚本路径
 	scriptPath := fmt.Sprintf("%s/init-env.sh", dm.scriptDir)
-	return dm.ExecuteScript(scriptPath)
+	
+	// 检查脚本文件是否存在
+	if _, err := os.Stat(scriptPath); os.IsNotExist(err) {
+		return fmt.Errorf("script %s not found", scriptPath)
+	}
+
+	// 设置执行上下文和超时
+	ctx, cancel := context.WithTimeout(context.Background(), dm.timeout)
+	defer cancel()
+
+	// 创建命令，执行init-env.sh脚本
+	cmd := exec.CommandContext(ctx, "bash", scriptPath)
+
+	// 设置工作目录为脚本目录
+	cmd.Dir = dm.scriptDir
+
+	// 捕获输出
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("failed to execute init-env script: %w\nOutput: %s", err, string(output))
+	}
+
+	// 记录成功执行日志
+	log.Printf("Successfully executed init-env script")
+	log.Printf("Script output: %s", strings.TrimSpace(string(output)))
+
+	return nil
 }
 
 // Cleanup 清理部署
 func (dm *DeploymentManager) Cleanup() error {
+	// 检查Docker是否可用
+	if !dm.IsDockerAvailable() {
+		return fmt.Errorf("docker is not available")
+	}
+
+	// 构建脚本路径
 	scriptPath := fmt.Sprintf("%s/cleanup.sh", dm.scriptDir)
-	return dm.ExecuteScript(scriptPath)
+	
+	// 检查脚本文件是否存在
+	if _, err := os.Stat(scriptPath); os.IsNotExist(err) {
+		return fmt.Errorf("script %s not found", scriptPath)
+	}
+
+	// 设置执行上下文和超时
+	ctx, cancel := context.WithTimeout(context.Background(), dm.timeout)
+	defer cancel()
+
+	// 创建命令，执行cleanup.sh脚本
+	cmd := exec.CommandContext(ctx, "bash", scriptPath)
+
+	// 设置工作目录为脚本目录
+	cmd.Dir = dm.scriptDir
+
+	// 捕获输出
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("failed to execute cleanup script: %w\nOutput: %s", err, string(output))
+	}
+
+	// 记录成功执行日志
+	log.Printf("Successfully executed cleanup script")
+	log.Printf("Script output: %s", strings.TrimSpace(string(output)))
+
+	return nil
 }

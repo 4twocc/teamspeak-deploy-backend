@@ -286,8 +286,8 @@ deploy_teamspeak() {
         return 1
     fi
 
-    # 检查 docker-compose 是否安装
-    if ! command -v docker-compose &> /dev/null && ! docker compose version &> /dev/null
+    # 检查 docker compose 是否安装
+    if ! docker compose version &> /dev/null
     then
         print_error "错误: Docker Compose 未安装，请先安装 Docker Compose"
         return 1
@@ -300,13 +300,9 @@ deploy_teamspeak() {
     # 创建持久化数据目录
     mkdir -p /var/lib/teamspeak/data
 
-    # 使用 docker-compose 启动所有服务
+    # 使用 docker compose 启动所有服务
     print_info "启动所有服务..."
-    if command -v docker-compose &> /dev/null; then
-        docker-compose up -d
-    else
-        docker compose up -d
-    fi
+    docker compose up -d
 
     print_success "TeamSpeak 服务器部署成功!"
     print_success "服务正在容器中运行"
@@ -320,12 +316,8 @@ deploy_teamspeak() {
     print_info "保存首次运行日志..."
     first_log_file="/var/lib/teamspeak/data/first_run.log"
     
-    # 使用 docker-compose 获取日志
-    if command -v docker-compose &> /dev/null; then
-        docker-compose logs teamspeak > "$first_log_file" 2>&1
-    else
-        docker compose logs teamspeak > "$first_log_file" 2>&1
-    fi
+    # 使用 docker compose 获取日志
+    docker compose logs teamspeak > "$first_log_file" 2>&1
 
     print_info "首次运行日志已保存到: $first_log_file"
     print_info "首次运行可能需要一些时间来初始化，日志已保存到文件"
@@ -352,8 +344,8 @@ deploy_teamspeak_enhanced() {
         return 1
     fi
 
-    # 检查 docker-compose 是否安装
-    if ! command -v docker-compose &> /dev/null && ! docker compose version &> /dev/null
+    # 检查 docker compose 是否安装
+    if ! docker compose version &> /dev/null
     then
         print_error "错误: Docker Compose 未安装，请先安装 Docker Compose"
         return 1
@@ -366,13 +358,9 @@ deploy_teamspeak_enhanced() {
     # 创建持久化数据目录
     mkdir -p /var/lib/teamspeak/data
 
-    # 使用 docker-compose 启动所有服务
+    # 使用 docker compose 启动所有服务
     print_info "启动所有服务..."
-    if command -v docker-compose &> /dev/null; then
-        docker-compose up -d
-    else
-        docker compose up -d
-    fi
+    docker compose up -d
 
     print_success "TeamSpeak 服务器部署成功!"
     print_success "服务正在容器中运行"
@@ -386,12 +374,8 @@ deploy_teamspeak_enhanced() {
     print_info "保存首次运行日志..."
     first_log_file="/var/lib/teamspeak/data/first_run.log"
     
-    # 使用 docker-compose 获取日志
-    if command -v docker-compose &> /dev/null; then
-        docker-compose logs teamspeak > "$first_log_file" 2>&1
-    else
-        docker compose logs teamspeak > "$first_log_file" 2>&1
-    fi
+    # 使用 docker compose 获取日志
+    docker compose logs teamspeak > "$first_log_file" 2>&1
 
     print_info "首次运行日志已保存到: $first_log_file"
 

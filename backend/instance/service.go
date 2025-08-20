@@ -608,14 +608,20 @@ func escapeIniValue(value string) string {
 func (s *Service) buildStartCommand(instance *Instance) (*exec.Cmd, error) {
 	// 1. 准备命令参数
 	args := []string{
-		"ts3server",
-		fmt.Sprintf("default_voice_port=%d", instance.Config.VoicePort),
-		fmt.Sprintf("filetransfer_port=%d", instance.Config.FilePort),
-		fmt.Sprintf("query_port=%d", instance.Config.QueryPort),
-		fmt.Sprintf("serveradmin_password=%s", instance.Config.QueryAdminPassword),
+		"run", "-d",
+		"--name", fmt.Sprintf("teamspeak-%s", instance.ID),
+		"--service-ports",
+		"teamspeak",
 	}
 
-	// 2. 添加可选参数
+	// 2. 添加服务器参数
+	args = append(args, "ts3server")
+	args = append(args, fmt.Sprintf("default_voice_port=%d", instance.Config.VoicePort))
+	args = append(args, fmt.Sprintf("filetransfer_port=%d", instance.Config.FilePort))
+	args = append(args, fmt.Sprintf("query_port=%d", instance.Config.QueryPort))
+	args = append(args, fmt.Sprintf("serveradmin_password=%s", instance.Config.QueryAdminPassword))
+
+	// 3. 添加可选参数
 	if instance.Config.ServerName != "" {
 		args = append(args, fmt.Sprintf("server_name=%s", instance.Config.ServerName))
 	}
@@ -623,23 +629,19 @@ func (s *Service) buildStartCommand(instance *Instance) (*exec.Cmd, error) {
 		args = append(args, fmt.Sprintf("welcome_message=%s", instance.Config.WelcomeMsg))
 	}
 
-	// 3. 创建命令 (使用docker-compose而不是docker run)
+	// 4. 创建命令 (使用docker compose而不是docker-compose)
 	projectRoot, _ := os.Getwd()
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		if _, err := os.Stat(filepath.Join(projectRoot, "docker-compose.yml")); err == nil {
 			break
 		}
 		projectRoot = filepath.Dir(projectRoot)
 	}
-	
-	cmd := exec.Command("docker-compose", append([]string{
-		"run", "-d",
-		"--name", fmt.Sprintf("teamspeak-%s", instance.ID),
-		"--service-ports",
-		"teamspeak",
-	}, args...)...)
-	
-	// 4. 设置工作目录为项目根目录以使用docker-compose.yml
+
+	// 使用docker compose而不是docker-compose
+	cmd := exec.Command("docker", append([]string{"compose"}, args...)...)
+
+	// 5. 设置工作目录为项目根目录以使用docker-compose.yml
 	cmd.Dir = projectRoot
 
 	return cmd, nil
@@ -768,9 +770,9 @@ func (s *Service) monitorInstance(instance *Instance, cmd *exec.Cmd) {
 
 // buildStopCommand 构建停止命令
 func (s *Service) buildStopCommand(instance *Instance) (*exec.Cmd, error) {
-	// 使用 docker-compose stop 命令停止容器
+	// 使用 docker compose stop 命令停止容器
 	containerName := fmt.Sprintf("teamspeak-%s", instance.ID)
-	
+
 	// 确定项目根目录
 	projectRoot, _ := os.Getwd()
 	for i := 0; i < 3; i++ {
@@ -779,8 +781,9 @@ func (s *Service) buildStopCommand(instance *Instance) (*exec.Cmd, error) {
 		}
 		projectRoot = filepath.Dir(projectRoot)
 	}
-	
-	cmd := exec.Command("docker-compose", "stop", "--timeout", "10", containerName)
+
+	// 使用docker compose而不是docker-compose
+	cmd := exec.Command("docker", "compose", "stop", "--timeout", "10", containerName)
 	cmd.Dir = projectRoot
 	return cmd, nil
 }

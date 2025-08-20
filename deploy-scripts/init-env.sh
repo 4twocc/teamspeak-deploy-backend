@@ -96,6 +96,19 @@ then
     fi
 fi
 
+# 检查并安装 Docker Compose (如果尚未安装)
+if ! docker compose version &> /dev/null
+then
+    print_warn "Docker Compose not found. Installing Docker Compose..."
+    
+    # 安装 Docker Compose 插件
+    apt-get install -y docker-compose-plugin
+    
+    print_success "Docker Compose installed successfully"
+else
+    print_info "Docker Compose is already installed"
+fi
+
 # 配置 Docker 镜像加速器和日志轮转
 print_info "Configuring Docker daemon..."
 sudo mkdir -p /etc/docker

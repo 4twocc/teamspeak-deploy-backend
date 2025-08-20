@@ -106,4 +106,4 @@ else
 fi
 
 print_success "TeamSpeak ports opened successfully!"
-print_success "You can now deploy TeamSpeak service."
+print_success "You can now deploy TeamSpeak service using docker compose."
