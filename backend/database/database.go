@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"gorm.io/driver/mysql"
@@ -39,6 +40,13 @@ func Init(config *Config) error {
 	case "postgres":
 		dialector = postgres.Open(config.DSN)
 	case "sqlite":
+		// 支持 URL 风格的 DSN（例如 sqlite:///data/teamspeak.db 或 file:/data/teamspeak.db）
+		// 将其规范化为文件系统路径，避免把整个 URL 当作路径拼接导致错误（如 "/app/sqlite:/data"）
+		config.DSN = strings.TrimPrefix(config.DSN, "sqlite://")
+		if after, ok := strings.CutPrefix(config.DSN, "file:"); ok {
+			config.DSN = after
+		}
+
 		// 确保目录存在
 		dir := filepath.Dir(config.DSN)
 
