@@ -47,6 +47,10 @@ RUN adduser -D -s /bin/sh teamspeak
 COPY --chown=root:root ./entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
+# 确保工作目录权限正确
+RUN chown -R teamspeak:teamspeak /app && \
+    chmod -R 777 /app/data
+
 # ENTRYPOINT 以 root 身份运行，脚本将修复挂载目录权限并使用 su-exec 切换到 teamspeak
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 

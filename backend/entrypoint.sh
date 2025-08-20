@@ -14,6 +14,16 @@ chown -R teamspeak:teamspeak /data 2>/dev/null || true
 chmod -R u+rwX,g+rwX,o+rwX /app/data || true
 chmod -R u+rwX,g+rwX,o+rwX /data || true
 
+# Handle the case where /app/data is a mount point that prevents chown/chmod
+# Create a fallback directory that is definitely writable
+if [ ! -w "/app/data" ]; then
+    mkdir -p /tmp/data
+    chmod 777 /tmp/data
+    export DATA_DIR="/tmp/data"
+else
+    export DATA_DIR="/app/data"
+fi
+
 # If su-exec is available, use it to drop privileges, otherwise fallback to su
 if command -v su-exec >/dev/null 2>&1; then
   exec su-exec teamspeak:teamspeak "$@"

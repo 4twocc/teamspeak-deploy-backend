@@ -42,21 +42,29 @@ func Init(config *Config) error {
 	case "sqlite":
 		// 支持 URL 风格的 DSN（例如 sqlite:///data/teamspeak.db 或 file:/data/teamspeak.db）
 		// 将其规范化为文件系统路径，避免把整个 URL 当作路径拼接导致错误（如 "/app/sqlite:/data"）
-		config.DSN = strings.TrimPrefix(config.DSN, "sqlite://")
-		if after, ok := strings.CutPrefix(config.DSN, "file:"); ok {
-			config.DSN = after
+		dsn := config.DSN
+		dsn = strings.TrimPrefix(dsn, "sqlite://")
+		if after, ok := strings.CutPrefix(dsn, "file:"); ok {
+			dsn = after
+		}
+
+		// 检查是否有环境变量指定数据目录
+		if dataDir := os.Getenv("DATA_DIR"); dataDir != "" {
+			// 使用环境变量中的数据目录
+			filename := filepath.Base(dsn)
+			dsn = filepath.Join(dataDir, filename)
 		}
 
 		// 确保目录存在
-		dir := filepath.Dir(config.DSN)
+		dir := filepath.Dir(dsn)
 
 		// 如果是相对路径，转换为绝对路径
-		if !filepath.IsAbs(config.DSN) {
+		if !filepath.IsAbs(dsn) {
 			wd, err := os.Getwd()
 			if err != nil {
 				return fmt.Errorf("failed to get current working directory: %v", err)
 			}
-			absPath := filepath.Join(wd, config.DSN)
+			absPath := filepath.Join(wd, dsn)
 			dir = filepath.Dir(absPath)
 
 			// 确保目录存在，使用更宽松的权限
@@ -65,7 +73,7 @@ func Init(config *Config) error {
 			}
 
 			// 更新DSN为绝对路径
-			config.DSN = absPath
+			dsn = absPath
 		} else {
 			// 对于绝对路径，确保目录存在，使用更宽松的权限
 			if err := os.MkdirAll(dir, 0777); err != nil {
@@ -74,18 +82,18 @@ func Init(config *Config) error {
 		}
 
 		// 确保数据库文件存在或者可以被创建
-		if _, err := os.Stat(config.DSN); os.IsNotExist(err) {
+		if _, err := os.Stat(dsn); os.IsNotExist(err) {
 			// 直接创建数据库文件
-			file, err := os.OpenFile(config.DSN, os.O_CREATE|os.O_WRONLY, 0666)
+			file, err := os.OpenFile(dsn, os.O_CREATE|os.O_WRONLY, 0666)
 			if err != nil {
 				// 获取更多错误信息
 				stat, _ := os.Stat(dir)
-				return fmt.Errorf("failed to create database file '%s': %v. Directory info: %+v", config.DSN, err, stat)
+				return fmt.Errorf("failed to create database file '%s': %v. Directory info: %+v", dsn, err, stat)
 			}
 			file.Close()
 		}
 
-		dialector = sqlite.Open(config.DSN)
+		dialector = sqlite.Open(dsn)
 	default:
 		return fmt.Errorf("unsupported database driver: %s", config.Driver)
 	}
