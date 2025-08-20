@@ -79,7 +79,7 @@ then
     
     print_success "Docker installed successfully"
 else
-    print_warn "Docker is already installed"
+    print_info "Docker is already installed"
 fi
 
 # 验证 Docker 是否正常工作

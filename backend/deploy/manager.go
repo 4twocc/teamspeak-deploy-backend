@@ -39,6 +39,16 @@ func (dm *DeploymentManager) IsDockerAvailable() bool {
 	return err == nil
 }
 
+// IsDockerComposeAvailable 检查Docker Compose是否可用
+func (dm *DeploymentManager) IsDockerComposeAvailable() bool {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "docker", "compose", "version")
+	err := cmd.Run()
+	return err == nil
+}
+
 // GetContainerStatus 获取容器状态
 func (dm *DeploymentManager) GetContainerStatus() (map[string]any, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -54,6 +64,7 @@ func (dm *DeploymentManager) GetContainerStatus() (map[string]any, error) {
 	return map[string]any{
 		"container_info":   output,
 		"docker_available": dm.IsDockerAvailable(),
+		"compose_available": dm.IsDockerComposeAvailable(),
 	}, nil
 }
 
@@ -61,6 +72,7 @@ func (dm *DeploymentManager) GetContainerStatus() (map[string]any, error) {
 func (dm *DeploymentManager) GetDeploymentStatus() (map[string]any, error) {
 	return map[string]any{
 		"docker_available": dm.IsDockerAvailable(),
+		"compose_available": dm.IsDockerComposeAvailable(),
 		"script_dir":       dm.scriptDir,
 	}, nil
 }
@@ -99,9 +111,13 @@ func (dm *DeploymentManager) ExecuteScript(scriptName string) error {
 }
 
 func (dm *DeploymentManager) Deploy() error {
-	// 检查Docker是否可用
+	// 检查Docker和Docker Compose是否可用
 	if !dm.IsDockerAvailable() {
 		return fmt.Errorf("docker is not available")
+	}
+	
+	if !dm.IsDockerComposeAvailable() {
+		return fmt.Errorf("docker compose is not available")
 	}
 
 	// 构建脚本路径
@@ -137,9 +153,10 @@ func (dm *DeploymentManager) Deploy() error {
 
 // InitEnvironment 初始化环境
 func (dm *DeploymentManager) InitEnvironment() error {
-	// 检查Docker是否可用
-	if !dm.IsDockerAvailable() {
-		return fmt.Errorf("docker is not available")
+	// 检查Docker和Docker Compose是否都已可用
+	if dm.IsDockerAvailable() && dm.IsDockerComposeAvailable() {
+		log.Printf("Docker and Docker Compose are already available")
+		return nil
 	}
 
 	// 构建脚本路径
@@ -169,6 +186,11 @@ func (dm *DeploymentManager) InitEnvironment() error {
 	// 记录成功执行日志
 	log.Printf("Successfully executed init-env script")
 	log.Printf("Script output: %s", strings.TrimSpace(string(output)))
+
+	// 检查Docker和Docker Compose现在是否可用
+	if !dm.IsDockerAvailable() || !dm.IsDockerComposeAvailable() {
+		return fmt.Errorf("failed to install Docker or Docker Compose")
+	}
 
 	return nil
 }

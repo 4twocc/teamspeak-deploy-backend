@@ -272,10 +272,11 @@ open_ports() {
 deploy_teamspeak() {
     print_info "部署 TeamSpeak 服务..."
 
-    # 检查 Docker 是否安装
-    if ! command -v docker &> /dev/null
+    # 检查 Docker 和 Docker Compose 是否可用
+    if ! command -v docker &> /dev/null || ! docker compose version &> /dev/null
     then
-        print_error "错误: Docker 未安装，请先安装 Docker"
+        print_error "错误: Docker 或 Docker Compose 未安装，请先运行环境初始化脚本"
+        print_info "使用命令: sudo ./deploy.sh init"
         return 1
     fi
 
@@ -283,13 +284,6 @@ deploy_teamspeak() {
     if ! docker info &> /dev/null
     then
         print_error "错误: Docker 未运行，请先启动 Docker daemon"
-        return 1
-    fi
-
-    # 检查 docker compose 是否安装
-    if ! docker compose version &> /dev/null
-    then
-        print_error "错误: Docker Compose 未安装，请先安装 Docker Compose"
         return 1
     fi
 
@@ -330,10 +324,11 @@ deploy_teamspeak() {
 deploy_teamspeak_enhanced() {
     print_info "执行增强版 TeamSpeak 部署..."
 
-    # 检查 Docker 是否安装
-    if ! command -v docker &> /dev/null
+    # 检查 Docker 和 Docker Compose 是否可用
+    if ! command -v docker &> /dev/null || ! docker compose version &> /dev/null
     then
-        print_error "错误: Docker 未安装，请先安装 Docker"
+        print_error "错误: Docker 或 Docker Compose 未安装，请先运行环境初始化脚本"
+        print_info "使用命令: sudo ./deploy.sh init"
         return 1
     fi
 
@@ -341,13 +336,6 @@ deploy_teamspeak_enhanced() {
     if ! docker info &> /dev/null
     then
         print_error "错误: Docker 未运行，请先启动 Docker daemon"
-        return 1
-    fi
-
-    # 检查 docker compose 是否安装
-    if ! docker compose version &> /dev/null
-    then
-        print_error "错误: Docker Compose 未安装，请先安装 Docker Compose"
         return 1
     fi
 
