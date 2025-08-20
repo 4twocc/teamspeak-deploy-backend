@@ -918,6 +918,28 @@ func (s *Service) GetInstanceLogs(ctx context.Context, id string, limit int) ([]
 	return logs, nil
 }
 
+// GetInstanceResources 获取实例资源使用情况
+func (s *Service) GetInstanceResources(ctx context.Context, id string) (*ResourceUsage, error) {
+	// 获取实例
+	instance, err := s.GetInstance(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	// 检查实例是否正在运行
+	if !instance.IsRunning() {
+		return nil, fmt.Errorf("instance is not running")
+	}
+
+	// 获取资源使用情况
+	usage, err := getProcessResourceUsage(instance.ProcessID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get process resource usage: %w", err)
+	}
+
+	return usage, nil
+}
+
 // CreateInstanceInput 创建实例的输入参数
 type CreateInstanceInput struct {
 	Name               string `json:"name" validate:"required,min=3,max=100"`

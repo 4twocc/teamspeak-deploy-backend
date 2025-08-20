@@ -12,18 +12,19 @@ import (
 	"gorm.io/gorm"
 )
 
+// RegisterRoutes 注册实例管理路由
 func RegisterRoutes(router *gin.Engine) {
 	// 注册实例管理路由
-	router.GET("/api/v1/instances", listInstancesHandler)
-	router.POST("/api/v1/instances", createInstanceHandler)
-	router.GET("/api/v1/instances/:id", getInstanceHandler)
-	router.PUT("/api/v1/instances/:id", updateInstanceHandler)
-	router.DELETE("/api/v1/instances/:id", deleteInstanceHandler)
-	router.POST("/api/v1/instances/:id/start", startInstanceHandler)
-	router.POST("/api/v1/instances/:id/stop", stopInstanceHandler)
-	router.POST("/api/v1/instances/:id/restart", restartInstanceHandler)
-	router.GET("/api/v1/instances/:id/logs", getInstanceLogsHandler)
-	router.GET("/api/v1/instances/:id/resources", getInstanceResourcesHandler)
+	router.GET("/api/instances", listInstancesHandler)
+	router.POST("/api/instances", createInstanceHandler)
+	router.GET("/api/instances/:id", getInstanceHandler)
+	router.PUT("/api/instances/:id", updateInstanceHandler)
+	router.DELETE("/api/instances/:id", deleteInstanceHandler)
+	router.POST("/api/instances/:id/actions/start", startInstanceHandler)
+	router.POST("/api/instances/:id/actions/stop", stopInstanceHandler)
+	router.POST("/api/instances/:id/actions/restart", restartInstanceHandler)
+	router.GET("/api/instances/:id/logs", getInstanceLogsHandler)
+	router.GET("/api/instances/:id/resources", getInstanceResourcesHandler)
 }
 
 var (

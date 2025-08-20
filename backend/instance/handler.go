@@ -46,6 +46,7 @@ func (h *Handler) RegisterRoutes(router *gin.Engine) {
 	router.POST(api.InstancesStopPath, h.stopInstanceGin)
 	router.POST(api.InstancesRestartPath, h.restartInstanceGin)
 	router.GET(api.InstancesLogsPath, h.getInstanceLogsGin)
+	router.GET(api.InstancesResourcesPath, h.getInstanceResourcesGin)
 }
 
 // 基于 gin 的 handler 方法
@@ -91,6 +92,35 @@ func (h *Handler) restartInstanceGin(c *gin.Context) {
 func (h *Handler) getInstanceLogsGin(c *gin.Context) {
 	req := c.Request.WithContext(context.WithValue(c.Request.Context(), idKey, c.Param("id")))
 	h.getInstanceLogs(c.Writer, req)
+}
+
+func (h *Handler) getInstanceResourcesGin(c *gin.Context) {
+	req := c.Request.WithContext(context.WithValue(c.Request.Context(), idKey, c.Param("id")))
+	h.getInstanceResources(c.Writer, req)
+}
+
+// getInstanceResources 获取实例资源使用情况
+func (h *Handler) getInstanceResources(w http.ResponseWriter, r *http.Request) {
+	// 获取实例ID
+	id := r.Context().Value(idKey).(string)
+	if id == "" {
+		utils.Fail(w, http.StatusBadRequest, utils.ErrMissingParameter, "Instance ID is required")
+		return
+	}
+
+	// 获取实例资源使用情况
+	resources, err := h.service.GetInstanceResources(r.Context(), id)
+	if err != nil {
+		log.Printf("Failed to get resources for instance %s: %v", id, err)
+		status := http.StatusInternalServerError
+		if errors.Is(err, ErrInstanceNotFound) {
+			status = http.StatusNotFound
+		}
+		utils.Fail(w, status, utils.ErrInternalServer, err.Error())
+		return
+	}
+
+	utils.OK(w, resources)
 }
 
 // listInstances 获取实例列表

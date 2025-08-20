@@ -9,7 +9,7 @@ import (
 // API路径常量定义
 const (
 	// 基础路径
-	APIBasePath = "/api"
+	APIBasePath = "api"
 
 	// 基础API路径
 	PingPath = APIBasePath + "/ping"
@@ -46,14 +46,16 @@ const (
 	InstancesUpdatePath = InstancesBasePath + "/:id"
 	// 实例删除路径
 	InstancesDeletePath = InstancesBasePath + "/:id"
-	// 实例启动路径
-	InstancesStartPath = InstancesBasePath + "/:id/start"
-	// 实例停止路径
-	InstancesStopPath = InstancesBasePath + "/:id/stop"
-	// 实例重启路径
-	InstancesRestartPath = InstancesBasePath + "/:id/restart"
+	// 实例启动路径 - 修改为符合RESTful规范的action
+	InstancesStartPath = InstancesBasePath + "/:id/actions/start"
+	// 实例停止路径 - 修改为符合RESTful规范的action
+	InstancesStopPath = InstancesBasePath + "/:id/actions/stop"
+	// 实例重启路径 - 修改为符合RESTful规范的action
+	InstancesRestartPath = InstancesBasePath + "/:id/actions/restart"
 	// 实例日志路径
 	InstancesLogsPath = InstancesBasePath + "/:id/logs"
+	// 实例资源路径
+	InstancesResourcesPath = InstancesBasePath + "/:id/resources"
 
 	// 部署相关路径
 	DeployBasePath = APIBasePath + "/v1/deploy"
@@ -82,6 +84,10 @@ const (
 	MonitorHealthPath = MonitorBasePath + "/health"
 	// 指标监控路径
 	MonitorMetricsPath = MonitorBasePath + "/metrics"
+	// 历史监控路径
+	MonitorHistoryPath = MonitorBasePath + "/history"
+	// Redis健康检查路径
+	RedisHealthPath = MonitorBasePath + "/redis/health"
 )
 
 // RegisterRoutes registers API routes
