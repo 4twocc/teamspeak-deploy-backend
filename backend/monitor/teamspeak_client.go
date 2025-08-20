@@ -76,6 +76,14 @@ func (c *TeamSpeakClient) connect() error {
 		}
 	}
 
+	// 设置昵称
+	if c.config.Nickname != "" {
+		cmd := ts3.NewCmd(fmt.Sprintf("clientupdate client_nickname=%s", c.config.Nickname))
+		if _, err := client.ExecCmd(cmd); err != nil {
+			log.Printf("Warning: failed to set nickname: %v", err)
+		}
+	}
+
 	c.client = client
 	log.Println("Successfully connected to TeamSpeak server")
 	return nil
@@ -135,8 +143,9 @@ func (c *TeamSpeakClient) ensureConnected() error {
 
 // GetServerInfo retrieves information about the TeamSpeak server
 func (c *TeamSpeakClient) GetServerInfo() (*ServerInfo, error) {
-	if c.client == nil {
-		return nil, fmt.Errorf("not connected to TeamSpeak server")
+	// 确保连接可用
+	if err := c.ensureConnected(); err != nil {
+		return nil, fmt.Errorf("not connected to TeamSpeak server: %w", err)
 	}
 
 	// Get server info
@@ -153,4 +162,11 @@ func (c *TeamSpeakClient) GetServerInfo() (*ServerInfo, error) {
 	}
 
 	return info, nil
+}
+
+// UseID is a helper function to select a virtual server by ID
+func UseID(client *ts3.Client, serverID int) error {
+	cmd := ts3.NewCmd(fmt.Sprintf("use sid=%d", serverID))
+	_, err := client.ExecCmd(cmd)
+	return err
 }

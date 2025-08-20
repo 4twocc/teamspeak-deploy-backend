@@ -480,7 +480,7 @@ extract_credentials() {
         
         # 添加TeamSpeak凭证
         echo "# TeamSpeak Credentials (auto-generated)"
-        echo "TEAMSPEAK_SERVER_ADMIN_USERNAME=serveradmin"
+        echo "TEAMSPEAK_USERNAME=serveradmin"
         echo "TEAMSPEAK_PASSWORD=$password"
         if [ -n "$api_key" ]; then
             echo "TEAMSPEAK_SERVER_QUERY_APIKEY=$api_key"

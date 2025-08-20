@@ -52,7 +52,7 @@ monitoring:
     inner_func_delay: 10s
   redis:
     enabled: true
-    addr: "localhost:6379"
+    addr: "redis:6379"
     password: ""
     db: 0
 
@@ -60,7 +60,7 @@ teamspeak:
   host: teamspeak  # 使用docker-compose服务名而不是localhost
   query_port: 10011
   virtual_server_port: 9987
-  virtual_server_id: 0
+  virtual_server_id: 1
   username: serveradmin
   # password 通过环境变量 TEAMSPEAK_PASSWORD 设置
   nickname: "Monitoring Bot"

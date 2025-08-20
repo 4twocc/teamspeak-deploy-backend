@@ -181,6 +181,11 @@ func loadSensitiveConfigFromEnv(config *Config) {
 		config.Teamspeak.Password = tsPassword
 	}
 
+	// 从环境变量加载 TeamSpeak username
+	if tsUsername := os.Getenv("TEAMSPEAK_USERNAME"); tsUsername != "" {
+		config.Teamspeak.Username = tsUsername
+	}
+
 	// 从环境变量加载 TeamSpeak 主机和端口
 	if tsHost := os.Getenv("TEAMSPEAK_HOST"); tsHost != "" {
 		config.Teamspeak.Host = tsHost

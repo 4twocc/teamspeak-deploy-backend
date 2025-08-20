@@ -77,7 +77,7 @@
    - 用途: 用于获取管理员权限的令牌
 
 5. **TeamSpeak Server Admin Username**
-   - 环境变量: `TEAMSPEAK_SERVER_ADMIN_USERNAME`
+   - 环境变量: `TEAMSPEAK_USERNAME`
    - 用途: TeamSpeak服务器管理员用户名
 
 ### 配置方法
@@ -96,7 +96,7 @@
    JWT_SECRET=your_actual_jwt_secret
    TEAMSPEAK_SERVER_QUERY_APIKEY=your_actual_api_key
    TEAMSPEAK_SERVER_ADMIN_TOKEN=your_actual_admin_token
-   TEAMSPEAK_SERVER_ADMIN_USERNAME=serveradmin
+   TEAMSPEAK_USERNAME=serveradmin
    ```
 
 3. 生成安全的JWT密钥：
