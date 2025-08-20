@@ -4,6 +4,7 @@ package main
 import (
 	"log"
 	"os"
+	"time"
 
 	"teamspeak-one-click-deploy/config"
 	"teamspeak-one-click-deploy/database"
@@ -17,6 +18,17 @@ import (
 )
 
 func main() {
+	// 设置时区为北京时间 UTC+8
+	location, err := time.LoadLocation("Asia/Shanghai")
+	if err != nil {
+		log.Printf("Warning: failed to load Asia/Shanghai timezone: %v", err)
+		// 如果加载时区失败，尝试使用UTC+8的固定时区偏移
+		location = time.FixedZone("UTC+8", 8*60*60)
+		log.Println("Using fixed UTC+8 timezone")
+	}
+	time.Local = location
+	log.Println("Set timezone to Beijing (UTC+8)")
+
 	// 先尝试加载 .env 文件（如果存在），使得 os.Getenv 能读取这些值
 	if err := utils.DiscoverAndLoadDotEnv(); err != nil {
 		log.Printf("No .env files loaded: %v", err)

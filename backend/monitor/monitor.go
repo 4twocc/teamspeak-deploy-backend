@@ -11,7 +11,6 @@ import (
 	"syscall"
 	"time"
 
-	"teamspeak-one-click-deploy/api"
 	configPkg "teamspeak-one-click-deploy/config"
 	"teamspeak-one-click-deploy/utils"
 
@@ -22,13 +21,13 @@ import (
 
 // RegisterRoutes 注册监控路由
 func RegisterRoutes(mux *http.ServeMux) {
-	mux.HandleFunc(api.MonitorSystemPath, systemMonitorHandler)
-	mux.HandleFunc(api.MonitorBusinessPath, businessMonitorHandler)
-	mux.HandleFunc(api.MonitorHistoryPath, historyMonitorHandler)
-	mux.HandleFunc(api.MonitorStatsPath, statusHandler)
-	mux.HandleFunc(api.MonitorHealthPath, healthHandler)
-	mux.HandleFunc(api.RedisHealthPath, redisHealthHandler)
-	mux.Handle(api.MonitorMetricsPath, metricsHandler())
+	mux.HandleFunc("/system", systemMonitorHandler)
+	mux.HandleFunc("/business", businessMonitorHandler)
+	mux.HandleFunc("/history", historyMonitorHandler)
+	mux.HandleFunc("/stats", statusHandler)
+	mux.HandleFunc("/health", healthHandler)
+	mux.HandleFunc("/redis/health", redisHealthHandler)
+	mux.Handle("/metrics", metricsHandler())
 }
 
 var (

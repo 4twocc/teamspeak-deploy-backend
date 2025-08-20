@@ -202,8 +202,24 @@ func RateLimitMiddlewareWithGin(r rate.Limit, b int) gin.HandlerFunc {
 	limiter := NewIPRateLimiter(r, b)
 	
 	return func(c *gin.Context) {
+		// 添加空指针检查
+		if limiter == nil {
+			// 如果limiter为nil，记录错误并继续处理请求（不进行限流）
+			log.Printf("Warning: rate limiter is nil, skipping rate limiting")
+			c.Next()
+			return
+		}
+		
 		ip := c.ClientIP()
-		if !limiter.GetLimiter(ip).Allow() {
+		limiterInstance := limiter.GetLimiter(ip)
+		if limiterInstance == nil {
+			// 如果特定IP的limiter为nil，记录错误并继续处理请求
+			log.Printf("Warning: limiter for IP %s is nil, skipping rate limiting", ip)
+			c.Next()
+			return
+		}
+		
+		if !limiterInstance.Allow() {
 			c.JSON(http.StatusTooManyRequests, gin.H{
 				"code":    ErrTooManyRequests,
 				"message": "Too many requests",
