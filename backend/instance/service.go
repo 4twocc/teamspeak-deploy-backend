@@ -623,19 +623,24 @@ func (s *Service) buildStartCommand(instance *Instance) (*exec.Cmd, error) {
 		args = append(args, fmt.Sprintf("welcome_message=%s", instance.Config.WelcomeMsg))
 	}
 
-	// 3. 创建命令
-	cmd := exec.Command("docker", append([]string{
+	// 3. 创建命令 (使用docker-compose而不是docker run)
+	projectRoot, _ := os.Getwd()
+	for i := 0; i < 3; i++ {
+		if _, err := os.Stat(filepath.Join(projectRoot, "docker-compose.yml")); err == nil {
+			break
+		}
+		projectRoot = filepath.Dir(projectRoot)
+	}
+	
+	cmd := exec.Command("docker-compose", append([]string{
 		"run", "-d",
 		"--name", fmt.Sprintf("teamspeak-%s", instance.ID),
-		"-p", fmt.Sprintf("%d:%d/udp", instance.Config.VoicePort, instance.Config.VoicePort),
-		"-p", fmt.Sprintf("%d:%d/tcp", instance.Config.FilePort, instance.Config.FilePort),
-		"-p", fmt.Sprintf("%d:%d/tcp", instance.Config.QueryPort, instance.Config.QueryPort),
-		"-v", fmt.Sprintf("%s:/var/ts3server", filepath.Join("/var/lib/teamspeak", instance.ID)),
-		"teamspeak:latest",
+		"--service-ports",
+		"teamspeak",
 	}, args...)...)
-
-	// 4. 设置工作目录
-	cmd.Dir = filepath.Join("/var/lib/teamspeak", instance.ID)
+	
+	// 4. 设置工作目录为项目根目录以使用docker-compose.yml
+	cmd.Dir = projectRoot
 
 	return cmd, nil
 }
@@ -763,9 +768,21 @@ func (s *Service) monitorInstance(instance *Instance, cmd *exec.Cmd) {
 
 // buildStopCommand 构建停止命令
 func (s *Service) buildStopCommand(instance *Instance) (*exec.Cmd, error) {
-	// 使用 docker stop 命令停止容器
+	// 使用 docker-compose stop 命令停止容器
 	containerName := fmt.Sprintf("teamspeak-%s", instance.ID)
-	return exec.Command("docker", "stop", "--time", "10", containerName), nil
+	
+	// 确定项目根目录
+	projectRoot, _ := os.Getwd()
+	for i := 0; i < 3; i++ {
+		if _, err := os.Stat(filepath.Join(projectRoot, "docker-compose.yml")); err == nil {
+			break
+		}
+		projectRoot = filepath.Dir(projectRoot)
+	}
+	
+	cmd := exec.Command("docker-compose", "stop", "--timeout", "10", containerName)
+	cmd.Dir = projectRoot
+	return cmd, nil
 }
 
 // restartInstanceProcess 异步重启实例的实际实现

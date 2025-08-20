@@ -22,6 +22,7 @@ services:
       - ./backend/.env
     depends_on:
       - redis
+      - teamspeak
 
   redis:
     image: redis:7-alpine
@@ -31,6 +32,25 @@ services:
       - redis_data:/data
     command: redis-server --appendonly yes
     restart: unless-stopped
+
+  # 添加TeamSpeak服务
+  teamspeak:
+    image: teamspeak:latest
+    ports:
+      - "9987:9987/udp"
+      - "10011:10011/tcp"
+      - "30033:30033/tcp"
+    volumes:
+      - /var/lib/teamspeak/data:/var/ts3server
+    environment:
+      - TS3SERVER_LICENSE=accept
+    restart: unless-stopped
+    # 设置服务健康检查
+    healthcheck:
+      test: ["CMD-SHELL", "netstat -tuln | grep 10011 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   node-exporter:
     image: prom/node-exporter:latest

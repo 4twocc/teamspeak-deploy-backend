@@ -57,7 +57,7 @@ monitoring:
     db: 0
 
 teamspeak:
-  host: 127.0.0.1
+  host: teamspeak  # 使用docker-compose服务名而不是localhost
   query_port: 10011
   virtual_server_port: 9987
   virtual_server_id: 0
