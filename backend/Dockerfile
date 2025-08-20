@@ -37,13 +37,18 @@ RUN mkdir -p ./data && \
     chmod 777 ./data
 
 EXPOSE 8080
+# 安装 su-exec 用于在容器中安全降权
+RUN apk add --no-cache su-exec
 
-# 使用非root用户运行
+# 创建非 root 用户 teamspeak（entrypoint 将处理 chown 并降权运行）
 RUN adduser -D -s /bin/sh teamspeak
-# 设置数据目录的所有权
-RUN chown teamspeak:teamspeak ./data
 
-USER teamspeak
+# 复制 entrypoint 脚本并赋予执行权限
+COPY --chown=root:root ./entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
 
-# 启动命令
+# ENTRYPOINT 以 root 身份运行，脚本将修复挂载目录权限并使用 su-exec 切换到 teamspeak
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+
+# 默认命令参数 — 后端二进制
 CMD ["./teamspeak-backend"]
