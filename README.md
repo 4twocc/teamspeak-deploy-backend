@@ -50,7 +50,6 @@
    ```
 
 4. 访问 Web 界面：
-   - 前端: http://localhost
    - API: http://localhost:8080
 
 ## 安全配置
@@ -112,20 +111,21 @@ API 文档可通过 `/api/docs` 端点访问。
 
 ```
 .
-├── backend          # 后端服务
-│   ├── api          # API 路由
-│   ├── auth         # 认证模块
-│   ├── config       # 配置管理
-│   ├── database     # 数据库访问
-│   ├── deploy       # 部署模块
-│   ├── instance     # 实例管理
-│   ├── monitor      # 监控模块
-│   ├── users        # 用户管理
-│   ├── utils        # 工具函数
-│   ├── config.yaml  # 配置文件
-│   └── main.go      # 主程序入口
-├── deploy-scripts   # 部署脚本
-├── frontend         # 前端界面
+├── backend             # 后端服务
+│   ├── api             # API 路由
+│   ├── auth            # 认证模块
+│   ├── config          # 配置管理
+│   ├── database        # 数据库访问
+│   ├── deploy          # 部署模块
+│   ├── instance        # 实例管理
+│   ├── monitor         # 监控模块
+│   ├── users           # 用户管理
+│   ├── utils           # 工具函数
+│   ├── config.yaml     # 配置文件
+│   ├── entrypoint.sh   # TeamSpeak 容器入口点脚本
+│   └── main.go         # 主程序入口
+│ 
+├── deploy-scripts      # 部署脚本
 └── docker-compose.yml
 ```
 
@@ -139,9 +139,6 @@ deploy-scripts/
 ├── init-env.sh              # 环境初始化脚本
 ├── open-ports.sh            # 端口开放脚本
 ├── cleanup.sh               # 清理脚本
-├── Dockerfile               # TeamSpeak Docker 镜像构建文件
-├── entrypoint.sh            # TeamSpeak 容器入口点脚本
-├── extract_teamspeak_creds.go # 凭证提取工具（Go程序）
 └── AUTOMATIC_CREDENTIAL_EXTRACTION.md # 凭证自动提取说明文档
 ```
 
@@ -177,8 +174,6 @@ cd deploy-scripts
 
 4. **cleanup.sh**: 清理脚本，用于停止和删除TeamSpeak服务
 
-5. **extract_teamspeak_creds.go**: 独立的凭证提取工具，可以用Go直接运行
-
 ## 开发指南
 
 ### 后端开发
@@ -186,12 +181,6 @@ cd deploy-scripts
 1. 安装 Go 1.24.3+
 2. 安装依赖: `go mod tidy`
 3. 运行服务: `go run main.go`
-
-### 前端开发
-
-1. 安装 Node.js 22+
-2. 安装依赖: `npm install`
-3. 启动开发服务器: `npm run dev`
 
 ## 常见问题
 
@@ -237,12 +226,3 @@ EOF
 2. 日志文件是否存在：`ls /var/lib/teamspeak/data/first_run.log`
 3. 日志文件中是否包含凭证信息：`cat /var/lib/teamspeak/data/first_run.log | grep -i password`
 
-## 贡献指南
-1. Fork 本仓库
-2. 创建一个分支: `git checkout -b feature/xxx`
-3. 提交你的修改: `git commit -m 'feat: add xxx'`
-4. 推送到远程分支: `git push origin feature/xxx`
-5. 创建一个 Pull Request
-6. 等待审核
-7. 合并 Pull Request
-8. 恭喜，你已贡献了代码！

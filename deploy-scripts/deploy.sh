@@ -378,6 +378,15 @@ deploy_teamspeak_enhanced() {
     if extract_credentials "$first_log_file" "$env_file"; then
         print_info "凭证已保存到: $env_file"
         print_success "TeamSpeak 部署和凭证提取完成!"
+        
+        # 自动重启后端服务以加载新凭据
+        print_info "正在重启后端服务以加载新凭据..."
+        if docker compose restart backend; then
+            print_success "后端服务已成功重启!"
+        else
+            print_error "后端服务重启失败，请手动重启服务"
+        fi
+        
         print_info "您现在可以使用自动配置的凭证运行后端服务"
         return 0
     else
