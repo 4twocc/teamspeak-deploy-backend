@@ -21,13 +21,13 @@ import (
 
 // RegisterRoutes 注册监控路由
 func RegisterRoutes(mux *http.ServeMux) {
-	mux.HandleFunc("/system", systemMonitorHandler)
-	mux.HandleFunc("/business", businessMonitorHandler)
-	mux.HandleFunc("/history", historyMonitorHandler)
-	mux.HandleFunc("/stats", statusHandler)
-	mux.HandleFunc("/health", healthHandler)
-	mux.HandleFunc("/redis/health", redisHealthHandler)
-	mux.Handle("/metrics", metricsHandler())
+	mux.HandleFunc("/api/monitor/system", systemMonitorHandler)
+	mux.HandleFunc("/api/monitor/business", businessMonitorHandler)
+	mux.HandleFunc("/api/monitor/history", historyMonitorHandler)
+	mux.HandleFunc("/api/monitor/stats", statusHandler)
+	mux.HandleFunc("/api/monitor/health", healthHandler)
+	mux.HandleFunc("/api/monitor/redis/health", redisHealthHandler)
+	mux.Handle("/api/monitor/metrics", metricsHandler())
 }
 
 var (
