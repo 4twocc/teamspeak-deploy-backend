@@ -1,4 +1,4 @@
-// backend/users/users.go
+// backend/user/user.go
 package user
 
 import (
@@ -25,17 +25,17 @@ var req struct {
 
 // RegisterRoutes 注册用户管理路由
 func RegisterRoutes(router *gin.Engine) {
-	router.GET(api.UsersListPath, listHandler)
-	router.GET(api.UsersPagePath, usersPagedHandler)
-	router.POST(api.UsersAddPath, addHandler)
-	router.DELETE(api.UsersRemovePath, removeHandler)
+	router.GET(api.UserListPath, listHandler)
+	router.GET(api.UserPagePath, userPagedHandler)
+	router.POST(api.UserAddPath, addHandler)
+	router.DELETE(api.UserRemovePath, removeHandler)
 }
 
 // Initialize 初始化用户服务
 func Initialize() error {
 	// 确保数据库表已创建
 	if err := ensureTables(database.DB); err != nil {
-		return fmt.Errorf("failed to ensure users table exist: %w", err)
+		return fmt.Errorf("failed to ensure user table exist: %w", err)
 	}
 	return nil
 }
@@ -48,7 +48,7 @@ func ensureTables(db *gorm.DB) error {
 
 	// 自动迁移用户相关表
 	if err := db.AutoMigrate(&User{}); err != nil {
-		return fmt.Errorf("failed to auto migrate users table: %w", err)
+		return fmt.Errorf("failed to auto migrate user table: %w", err)
 	}
 
 	return nil
@@ -56,22 +56,22 @@ func ensureTables(db *gorm.DB) error {
 
 // listHandler 获取用户列表
 func listHandler(c *gin.Context) {
-	var users []User
-	if err := database.DB.Find(&users).Error; err != nil {
+	var user []User
+	if err := database.DB.Find(&user).Error; err != nil {
 		utils.FailGin(c, http.StatusInternalServerError, utils.ErrInternalServer, utils.ErrorMessage(utils.ErrInternalServer))
 		return
 	}
 
 	// 不返回密码
-	for i := range users {
-		users[i].Password = ""
+	for i := range user {
+		user[i].Password = ""
 	}
 
-	utils.OKGin(c, users)
+	utils.OKGin(c, user)
 }
 
-// usersPagedHandler 分页获取用户列表
-func usersPagedHandler(c *gin.Context) {
+// userPagedHandler 分页获取用户列表
+func userPagedHandler(c *gin.Context) {
 	q := c.Request.URL.Query()
 	page, err := strconv.Atoi(q.Get("page"))
 	if err != nil || page < 1 {
@@ -87,28 +87,28 @@ func usersPagedHandler(c *gin.Context) {
 	}
 
 	var total int64
-	var users []User
+	var user []User
 
 	// 获取总数
 	if err := database.DB.Model(&User{}).Count(&total).Error; err != nil {
-		utils.FailGin(c, http.StatusInternalServerError, utils.ErrInternalServer, "Failed to count users")
+		utils.FailGin(c, http.StatusInternalServerError, utils.ErrInternalServer, "Failed to count user")
 		return
 	}
 
 	// 分页查询
 	offset := (page - 1) * pageSize
-	if err := database.DB.Offset(offset).Limit(pageSize).Find(&users).Error; err != nil {
-		utils.FailGin(c, http.StatusInternalServerError, utils.ErrInternalServer, "Failed to fetch users")
+	if err := database.DB.Offset(offset).Limit(pageSize).Find(&user).Error; err != nil {
+		utils.FailGin(c, http.StatusInternalServerError, utils.ErrInternalServer, "Failed to fetch user")
 		return
 	}
 
 	// 不返回密码
-	for i := range users {
-		users[i].Password = ""
+	for i := range user {
+		user[i].Password = ""
 	}
 
 	utils.OKGin(c, map[string]any{
-		"list":  users,
+		"list":  user,
 		"total": total,
 		"page":  page,
 		"pages": int(math.Ceil(float64(total) / float64(pageSize))),

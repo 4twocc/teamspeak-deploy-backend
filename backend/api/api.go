@@ -24,15 +24,15 @@ const (
 	UserInfoPath = AuthBasePath + "/info"
 
 	// 用户管理路径
-	UsersBasePath = APIBasePath + "/users"
+	UsersBasePath = APIBasePath + "/user"
 	// 用户列表路径
-	UsersListPath = UsersBasePath + "/list"
+	UserListPath = UsersBasePath + "/list"
 	// 用户分页列表路径
-	UsersPagePath = UsersBasePath + "/page"
+	UserPagePath = UsersBasePath + "/page"
 	// 用户添加路径
-	UsersAddPath = UsersBasePath + "/add"
+	UserAddPath = UsersBasePath + "/add"
 	// 用户删除路径
-	UsersRemovePath = UsersBasePath + "/remove"
+	UserRemovePath = UsersBasePath + "/remove"
 
 	// 实例管理路径
 	InstancesBasePath = APIBasePath + "/instances"

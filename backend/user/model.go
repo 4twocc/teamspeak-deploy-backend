@@ -14,7 +14,7 @@ type User struct {
 	Username  string         `json:"username" gorm:"size:50;uniqueIndex;not null"`
 	Nickname  string         `json:"nickname" gorm:"size:50"`
 	Password  string         `json:"-" gorm:"size:100;not null"`
-	Email     string         `json:"email" gorm:"size:100;uniqueIndex"`
+	Email     string         `json:"email" gorm:"size:100"`
 	Role      uint8          `json:"role" gorm:"size:20;default:8"`
 	Status    uint8          `json:"status" gorm:"size:20;default:0"`
 	LastLogin *time.Time     `json:"last_login,omitempty"`
@@ -77,7 +77,7 @@ func (u *User) IsBanned() bool {
 	return u.Status == utils.AccountStatusBanned
 }
 
-// IsBanned 检查用户是否锁定
+// IsLocked 检查用户是否锁定
 func (u *User) IsLocked() bool {
 	return u.Status == utils.AccountStatusLocked
 }
