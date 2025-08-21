@@ -52,10 +52,12 @@ func (i *IPRateLimiter) GetLimiter(ip string) *rate.Limiter {
 		i.mu.Lock()
 		defer i.mu.Unlock()
 		// Double-check in case limiter was added while acquiring lock
-		if limiter, exists := i.ips[ip]; !exists {
-			limiter = rate.NewLimiter(i.r, i.b)
-			i.ips[ip] = limiter
+		if limiter, exists := i.ips[ip]; exists {
+			return limiter
 		}
+		// Create new limiter if it doesn't exist
+		limiter = rate.NewLimiter(i.r, i.b)
+		i.ips[ip] = limiter
 		return limiter
 	}
 	return limiter
