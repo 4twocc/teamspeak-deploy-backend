@@ -219,6 +219,7 @@ func RateLimitMiddlewareWithGin(r rate.Limit, b int) gin.HandlerFunc {
 			return
 		}
 		
+		// 检查是否允许该请求通过
 		if !limiterInstance.Allow() {
 			c.JSON(http.StatusTooManyRequests, gin.H{
 				"code":    ErrTooManyRequests,
