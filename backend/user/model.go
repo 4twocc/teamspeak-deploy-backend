@@ -1,6 +1,7 @@
-package users
+package user
 
 import (
+	"teamspeak-one-click-deploy/utils"
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
@@ -9,12 +10,13 @@ import (
 
 // User 用户模型
 type User struct {
-	ID        uint           `json:"id" gorm:"primaryKey"`
+	UID       uint           `json:"uid" gorm:"primaryKey"`
 	Username  string         `json:"username" gorm:"size:50;uniqueIndex;not null"`
+	Nickname  string         `json:"nickname" gorm:"size:50"`
 	Password  string         `json:"-" gorm:"size:100;not null"`
 	Email     string         `json:"email" gorm:"size:100;uniqueIndex"`
-	Role      string         `json:"role" gorm:"size:20;default:'user'"`
-	Status    string         `json:"status" gorm:"size:20;default:'active'"`
+	Role      uint8          `json:"role" gorm:"size:20;default:8"`
+	Status    uint8          `json:"status" gorm:"size:20;default:0"`
 	LastLogin *time.Time     `json:"last_login,omitempty"`
 	CreatedAt time.Time      `json:"created_at"`
 	UpdatedAt time.Time      `json:"updated_at"`
@@ -23,7 +25,7 @@ type User struct {
 
 // TableName 指定表名
 func (User) TableName() string {
-	return "users"
+	return "user"
 }
 
 // BeforeCreate 创建前的钩子
@@ -57,10 +59,25 @@ func (u *User) CheckPassword(password string) bool {
 
 // IsAdmin 检查是否是管理员
 func (u *User) IsAdmin() bool {
-	return u.Role == "admin"
+	return u.Role == utils.AccountStatusAdmin
+}
+
+// IsAdmin 检查是否是运营者
+func (u *User) IsOperator() bool {
+	return u.Role == utils.AccountStatusOperator
 }
 
 // IsActive 检查用户是否激活
 func (u *User) IsActive() bool {
-	return u.Status == "active"
+	return u.Status == utils.AccountStatusActive
+}
+
+// IsBanned 检查用户是否禁用
+func (u *User) IsBanned() bool {
+	return u.Status == utils.AccountStatusBanned
+}
+
+// IsBanned 检查用户是否锁定
+func (u *User) IsLocked() bool {
+	return u.Status == utils.AccountStatusLocked
 }

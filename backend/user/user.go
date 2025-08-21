@@ -1,5 +1,5 @@
 // backend/users/users.go
-package users
+package user
 
 import (
 	"errors"
@@ -15,6 +15,13 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
+
+var req struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+	Email    string `json:"email"`
+	Role     uint8  `json:"role"`
+}
 
 // RegisterRoutes 注册用户管理路由
 func RegisterRoutes(router *gin.Engine) {
@@ -101,7 +108,7 @@ func usersPagedHandler(c *gin.Context) {
 	}
 
 	utils.OKGin(c, map[string]any{
-		"items": users,
+		"list":  users,
 		"total": total,
 		"page":  page,
 		"pages": int(math.Ceil(float64(total) / float64(pageSize))),
@@ -110,13 +117,6 @@ func usersPagedHandler(c *gin.Context) {
 
 // addHandler 添加用户
 func addHandler(c *gin.Context) {
-	var req struct {
-		Username string `json:"username"`
-		Password string `json:"password"`
-		Email    string `json:"email"`
-		Role     string `json:"role"`
-	}
-
 	if err := c.ShouldBindJSON(&req); err != nil {
 		utils.FailGin(c, http.StatusBadRequest, utils.ErrBadJSONBody, "Invalid request body")
 		return
@@ -129,10 +129,10 @@ func addHandler(c *gin.Context) {
 	}
 
 	// 验证角色
-	if req.Role == "" {
-		req.Role = "user" // 默认角色
-	} else if req.Role != "admin" && req.Role != "user" {
-		utils.FailGin(c, http.StatusBadRequest, utils.ErrInvalidRole, "Invalid role, must be 'admin' or 'user'")
+	if req.Role == 0 {
+		req.Role = utils.AccountStatusVisitor // 默认角色
+	} else if req.Role != utils.AccountStatusAdmin && req.Role != utils.AccountStatusOperator {
+		utils.FailGin(c, http.StatusBadRequest, utils.ErrInvalidRole, "Invalid role, must be 'admin' or 'operator'")
 		return
 	}
 
@@ -152,7 +152,7 @@ func addHandler(c *gin.Context) {
 		Username: req.Username,
 		Email:    req.Email,
 		Role:     req.Role,
-		Status:   "active",
+		Status:   utils.AccountStatusActive,
 	}
 
 	if err := user.SetPassword(req.Password); err != nil {

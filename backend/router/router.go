@@ -8,7 +8,7 @@ import (
 	"teamspeak-one-click-deploy/deploy"
 	"teamspeak-one-click-deploy/instance"
 	"teamspeak-one-click-deploy/monitor"
-	"teamspeak-one-click-deploy/users"
+	"teamspeak-one-click-deploy/user"
 
 	"github.com/gin-gonic/gin"
 )
@@ -29,7 +29,7 @@ func RegisterRoutes(router *gin.Engine) {
 	deploy.RegisterRoutes(router)
 
 	// 注册用户路由
-	users.RegisterRoutes(router)
+	user.RegisterRoutes(router)
 
 	// 监控路由需要 http.ServeMux，所以我们创建一个并挂载到 Gin
 	monitorMux := http.NewServeMux()

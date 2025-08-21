@@ -148,6 +148,8 @@ type TeamspeakConfig struct {
 type SecurityConfig struct {
 	JWTSecret          string `yaml:"jwt_secret"`
 	PasswordSaltRounds int    `yaml:"password_salt_rounds"`
+	ExpiresIn          int    `yaml:"expires_in"`
+	TokenPrefix        string `yaml:"token_prefix"`
 }
 
 // DeploymentConfig 部署配置
@@ -200,6 +202,18 @@ func loadSensitiveConfigFromEnv(config *Config) {
 	// 从环境变量加载 JWT secret
 	if jwtSecret := os.Getenv("JWT_SECRET"); jwtSecret != "" {
 		config.Security.JWTSecret = jwtSecret
+	}
+
+	// 从环境变量加载 JWT 过期时间
+	if expiresIn := os.Getenv("JWT_EXPIRES_IN"); expiresIn != "" {
+		if d, err := strconv.Atoi(expiresIn); err == nil {
+			config.Security.ExpiresIn = d
+		}
+	}
+
+	// 从环境变量加载 Token 前缀
+	if tokenPrefix := os.Getenv("JWT_TOKEN_PREFIX"); tokenPrefix != "" {
+		config.Security.TokenPrefix = tokenPrefix
 	}
 
 	// 从环境变量加载数据库配置
@@ -334,6 +348,8 @@ func DefaultConfig() *Config {
 		Security: SecurityConfig{
 			JWTSecret:          "",
 			PasswordSaltRounds: 10,
+			ExpiresIn:          24,
+			TokenPrefix:        "Bearer ",
 		},
 		Deployment: DeploymentConfig{
 			ScriptDir: "deploy-scripts",

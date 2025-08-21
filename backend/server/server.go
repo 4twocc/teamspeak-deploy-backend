@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"os/user"
 	"syscall"
 	"time"
 
@@ -16,7 +17,6 @@ import (
 	"teamspeak-one-click-deploy/deploy"
 	"teamspeak-one-click-deploy/instance"
 	"teamspeak-one-click-deploy/router"
-	"teamspeak-one-click-deploy/users"
 	"teamspeak-one-click-deploy/utils"
 
 	"github.com/gin-gonic/gin"
@@ -81,7 +81,7 @@ func InitDatabase(config *config.Config) error {
 	if config.Database.AutoMigrate {
 		err := database.DB.Transaction(func(tx *gorm.DB) error {
 			// 用户相关表
-			if err := tx.AutoMigrate(&users.User{}); err != nil {
+			if err := tx.AutoMigrate(&user.User{}); err != nil {
 				return fmt.Errorf("failed to migrate users table: %v", err)
 			}
 

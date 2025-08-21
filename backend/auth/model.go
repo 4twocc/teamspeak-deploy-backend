@@ -3,15 +3,17 @@ package auth
 import (
 	"time"
 
+	"teamspeak-one-click-deploy/user"
+
 	"github.com/golang-jwt/jwt/v5"
 )
 
 // Claims 定义 JWT 声明
 // 包含标准声明和自定义的用户信息
 type Claims struct {
-	UserID   uint   `json:"user_id"`
+	UID      uint   `json:"uid"`
 	Username string `json:"username"`
-	Role     string `json:"role"`
+	Role     uint8  `json:"role"`
 	jwt.RegisteredClaims
 }
 
@@ -33,26 +35,28 @@ type LoginResponse struct {
 // UserInfo 用户信息
 // 返回给客户端的用户信息
 type UserInfo struct {
-	ID        uint      `json:"id"`
-	Username  string    `json:"username"`
-	Email     string    `json:"email"`
-	Role      string    `json:"role"`
-	Status    string    `json:"status"`
-	LastLogin time.Time `json:"last_login,omitempty"`
+	UID       uint       `json:"uid"`
+	Username  string     `json:"username"`
+	Nickname  string     `json:"nickname"`
+	Email     string     `json:"email"`
+	Role      uint8      `json:"role"`
+	Status    uint8      `json:"status"`
+	LastLogin *time.Time `json:"last_login,omitempty"`
+	CreatedAt time.Time  `json:"created_at"`
+	UpdatedAt time.Time  `json:"updated_at"`
 }
 
-// Config 认证配置
-type Config struct {
-	JWTSecret   string        `yaml:"jwt_secret"`
-	ExpiresIn   time.Duration `yaml:"expires_in"`
-	TokenPrefix string        `yaml:"token_prefix"`
-}
-
-// DefaultConfig 返回默认的认证配置
-func DefaultConfig() *Config {
-	return &Config{
-		JWTSecret:   "your-secret-key-change-in-production",
-		ExpiresIn:   24 * time.Hour,
-		TokenPrefix: "Bearer ",
+// 将User模型转换为UserInfo模型
+func NewUserInfo(user *user.User) *UserInfo {
+	return &UserInfo{
+		UID:       user.UID,
+		Username:  user.Username,
+		Nickname:  user.Nickname,
+		Email:     user.Email,
+		Role:      user.Role,
+		Status:    user.Status,
+		LastLogin: user.LastLogin,
+		CreatedAt: user.CreatedAt,
+		UpdatedAt: user.UpdatedAt,
 	}
 }

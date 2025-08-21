@@ -47,7 +47,7 @@ func (i *IPRateLimiter) GetLimiter(ip string) *rate.Limiter {
 	if i == nil {
 		return nil
 	}
-	
+
 	i.mu.RLock()
 	limiter, exists := i.ips[ip]
 	i.mu.RUnlock()
@@ -75,7 +75,7 @@ func RateLimitMiddleware(r rate.Limit, b int) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			ip := r.RemoteAddr
-			if limiter.GetLimiter(ip).Allow() == false {
+			if !limiter.GetLimiter(ip).Allow() {
 				Fail(w, http.StatusTooManyRequests, ErrTooManyRequests, "Too many requests")
 				return
 			}

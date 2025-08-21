@@ -6,12 +6,13 @@ import (
 	"os"
 	"time"
 
+	"teamspeak-one-click-deploy/auth"
 	"teamspeak-one-click-deploy/config"
 	"teamspeak-one-click-deploy/database"
 	"teamspeak-one-click-deploy/instance"
 	"teamspeak-one-click-deploy/monitor"
 	"teamspeak-one-click-deploy/server"
-	"teamspeak-one-click-deploy/users"
+	"teamspeak-one-click-deploy/user"
 	"teamspeak-one-click-deploy/utils"
 
 	"github.com/gin-gonic/gin"
@@ -40,6 +41,9 @@ func main() {
 		log.Fatalf("Failed to load config: %v", err)
 	}
 
+	// 初始化认证模块
+	auth.Init(cfg)
+
 	// 初始化数据库
 	if err := server.InitDatabase(cfg); err != nil {
 		log.Fatalf("Failed to initialize database: %v", err)
@@ -53,7 +57,7 @@ func main() {
 	}()
 
 	// 初始化用户服务
-	if err := users.Initialize(); err != nil {
+	if err := user.Initialize(); err != nil {
 		log.Fatalf("Failed to initialize user service: %v", err)
 	}
 
