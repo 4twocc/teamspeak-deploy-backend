@@ -43,6 +43,11 @@ func (i *IPRateLimiter) AddIP(ip string) *rate.Limiter {
 // GetLimiter returns the rate limiter for the provided IP address if it exists.
 // Otherwise, it calls AddIP to add the IP address to the map.
 func (i *IPRateLimiter) GetLimiter(ip string) *rate.Limiter {
+	// 添加空指针检查
+	if i == nil {
+		return nil
+	}
+	
 	i.mu.RLock()
 	limiter, exists := i.ips[ip]
 	i.mu.RUnlock()

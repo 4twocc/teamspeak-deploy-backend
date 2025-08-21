@@ -220,6 +220,15 @@ func RateLimitMiddlewareWithGin(r rate.Limit, b int) gin.HandlerFunc {
 		}
 		
 		// 检查是否允许该请求通过
+		// 添加对Allow方法调用的保护
+		defer func() {
+			if err := recover(); err != nil {
+				log.Printf("Warning: rate limiter Allow() panic recovered: %v", err)
+				// 即使限流器出错，也允许请求通过
+				c.Next()
+			}
+		}()
+		
 		if !limiterInstance.Allow() {
 			c.JSON(http.StatusTooManyRequests, gin.H{
 				"code":    ErrTooManyRequests,
