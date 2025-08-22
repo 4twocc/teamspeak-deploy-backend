@@ -11,9 +11,8 @@ server:
   auth:
     require_auth: true
     public_paths:
-      - "/api/v1/auth/login"
-      - "/api/v1/auth/register"
-      - "/health"
+      - "/api/user/login"
+      - "/api/user/register"
   cors:
     allowed_origins:
       - "*"

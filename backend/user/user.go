@@ -26,7 +26,7 @@ var req struct {
 // RegisterRoutes 注册用户管理路由
 func RegisterRoutes(router *gin.Engine) {
 	router.GET(api.UserListPath, listHandler)
-	router.GET(api.UserPagePath, userPagedHandler)
+	// router.GET(api.UserPagePath, userPagedHandler)
 	router.POST(api.UserAddPath, addHandler)
 	router.DELETE(api.UserRemovePath, removeHandler)
 }

@@ -272,9 +272,8 @@ func DefaultConfig() *Config {
 			Auth: AuthConfig{
 				RequireAuth: true,
 				PublicPaths: []string{
-					"/api/v1/auth/login",
-					"/api/v1/auth/register",
-					"/health",
+					"/api/user/login",
+					"/api/user/register",
 				},
 			},
 			CORS: CORSConfig{

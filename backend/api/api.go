@@ -15,24 +15,26 @@ const (
 	PingPath = APIBasePath + "/ping"
 
 	// 认证相关路径
-	AuthBasePath = APIBasePath + "/auth"
-	// 认证登录路径
+	AuthBasePath = APIBasePath + "/user"
+	// 登录路径
 	LoginPath = AuthBasePath + "/login"
+	// 注册路径
+	RegisterPath = AuthBasePath + "/register"
 	// 认证登出路径
 	LogoutPath = AuthBasePath + "/logout"
 	// 认证用户信息路径
-	UserInfoPath = AuthBasePath + "/info"
+	UserInfoPath = AuthBasePath + "/info/:uid"
 
 	// 用户管理路径
-	UsersBasePath = APIBasePath + "/user"
+	UsersBasePath = APIBasePath + "/admin"
 	// 用户列表路径
-	UserListPath = UsersBasePath + "/list"
+	UserListPath = UsersBasePath + "/user/list"
 	// 用户分页列表路径
-	UserPagePath = UsersBasePath + "/page"
+	// UserPagePath = UsersBasePath + "/user/page"
 	// 用户添加路径
-	UserAddPath = UsersBasePath + "/add"
+	UserAddPath = UsersBasePath + "/user/add"
 	// 用户删除路径
-	UserRemovePath = UsersBasePath + "/remove"
+	UserRemovePath = UsersBasePath + "/user/remove"
 
 	// 实例管理路径
 	InstancesBasePath = APIBasePath + "/instances"
