@@ -11,6 +11,7 @@ import (
 // User 用户模型
 type User struct {
 	UID       uint           `json:"uid" gorm:"primaryKey;autoIncrement"`
+	Avatar    string         `json:"avatar" gorm:"size:100"`
 	Username  string         `json:"username" gorm:"size:50;uniqueIndex;not null"`
 	Nickname  string         `json:"nickname" gorm:"size:50"`
 	Password  string         `json:"-" gorm:"size:100;not null"`
@@ -29,9 +30,16 @@ func (User) TableName() string {
 }
 
 // BeforeCreate 创建前的钩子
+// 在用户创建前自动设置创建时间、更新时间和默认头像
 func (u *User) BeforeCreate(tx *gorm.DB) (err error) {
 	u.CreatedAt = time.Now()
 	u.UpdatedAt = time.Now()
+
+	// 如果用户没有设置头像，则生成基于用户名的默认头像
+	if u.Avatar == "" {
+		u.Avatar = "https://api.dicebear.com/9.x/adventurer-neutral/svg?seed=Felix"
+	}
+
 	return
 }
 

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -173,17 +174,40 @@ func loginHandler(c *gin.Context) {
 }
 
 // infoHandler 获取当前用户信息
+// infoHandler 处理用户信息查询
+// 支持两种模式：
+// 1. 通过路径参数uid查询指定用户信息（需要JWT认证）
+// 2. 如果uid参数为空或无效，则返回JWT token中的当前用户信息
+// @param c gin上下文
+// @return 返回用户信息或错误信息
 func infoHandler(c *gin.Context) {
-	// 从上下文中获取用户ID
-	userID, ok := c.Get(string(utils.UserIDKey))
-	if !ok || userID == 0 {
+	// 确保用户已通过JWT认证
+	currentUserID, ok := c.Get(string(utils.UserIDKey))
+	if !ok || currentUserID == 0 {
 		utils.FailGin(c, http.StatusUnauthorized, utils.ErrInvalidToken, utils.ErrorMessage(utils.ErrInvalidToken))
 		return
 	}
 
+	// 获取要查询的用户ID
+	var targetUserID uint64
+	uidParam := c.Param("uid")
+	
+	if uidParam != "" {
+		// 如果提供了uid参数，解析并使用该uid
+		parsedUID, err := strconv.ParseUint(uidParam, 10, 64)
+		if err != nil {
+			utils.FailGin(c, http.StatusBadRequest, utils.ErrInvalidParameter, "Invalid uid parameter")
+			return
+		}
+		targetUserID = parsedUID
+	} else {
+		// 如果没有提供uid参数，使用当前用户的ID
+		targetUserID = currentUserID.(uint64)
+	}
+
 	// 从数据库获取用户信息
 	var user user.User
-	if err := database.DB.First(&user, userID).Error; err != nil {
+	if err := database.DB.First(&user, targetUserID).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			utils.FailGin(c, http.StatusNotFound, utils.ErrUserNotFound, utils.ErrorMessage(utils.ErrUserNotFound))
 			return
