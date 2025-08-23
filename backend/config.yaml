@@ -23,7 +23,9 @@ server:
       - "DELETE"
       - "OPTIONS"
     allowed_headers:
-      - "*"
+      - "Content-Type"
+      - "Authorization"
+      - "X-Request-ID"
     expose_headers:
       - ""
     allow_credentials: false
