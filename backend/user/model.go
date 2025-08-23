@@ -40,13 +40,13 @@ func (u *User) BeforeCreate(tx *gorm.DB) (err error) {
 		u.Avatar = "https://api.dicebear.com/9.x/adventurer-neutral/svg?seed=Felix"
 	}
 
-	return
+	return nil
 }
 
 // BeforeUpdate 更新前的钩子
 func (u *User) BeforeUpdate(tx *gorm.DB) (err error) {
 	u.UpdatedAt = time.Now()
-	return
+	return nil
 }
 
 // SetPassword 设置密码（加密）
