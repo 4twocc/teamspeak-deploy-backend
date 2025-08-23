@@ -124,13 +124,10 @@ func SetupRouter(config *config.Config) (*gin.Engine, error) {
 	// 创建Gin引擎
 	routerEngine := gin.New()
 
-	// 注册路由
-	router.RegisterRoutes(routerEngine)
-
 	// 设置认证模块的配置
 	auth.SetServerConfig(&configWrapper{config: config})
 
-	// 添加中间件
+	// 添加中间件（必须在注册路由之前）
 	// 注意：Gin的CORS中间件需要单独配置
 	if len(config.Server.CORS.AllowedOrigins) > 0 {
 		routerEngine.Use(utils.NewCORSWithGin(utils.CORSConfig{
@@ -160,6 +157,9 @@ func SetupRouter(config *config.Config) (*gin.Engine, error) {
 	if config.Server.Auth.RequireAuth {
 		routerEngine.Use(auth.AuthMiddlewareWithGin())
 	}
+
+	// 注册路由（必须在中间件之后）
+	router.RegisterRoutes(routerEngine)
 
 	return routerEngine, nil
 }
