@@ -26,7 +26,6 @@ var req struct {
 // RegisterRoutes 注册用户管理路由
 func RegisterRoutes(router *gin.Engine) {
 	router.GET(api.UserListPath, listHandler)
-	// router.GET(api.UserPagePath, userPagedHandler)
 	router.POST(api.UserAddPath, addHandler)
 	router.DELETE(api.UserRemovePath, removeHandler)
 }
@@ -55,58 +54,70 @@ func ensureTables(db *gorm.DB) error {
 }
 
 // listHandler 获取用户列表
+// 支持分页查询，如果提供page和pageSize参数则返回分页数据，否则返回全部数据
+// @param page 页码，从1开始
+// @param pageSize 每页数量，最大100
+// @return 分页数据包含list、total、page、pages字段，非分页直接返回用户数组
 func listHandler(c *gin.Context) {
-	var user []User
-	if err := database.DB.Find(&user).Error; err != nil {
-		utils.FailGin(c, http.StatusInternalServerError, utils.ErrInternalServer, utils.ErrorMessage(utils.ErrInternalServer))
+	q := c.Request.URL.Query()
+	
+	// 检查是否有分页参数
+	pageStr := q.Get("page")
+	pageSizeStr := q.Get("pageSize")
+	
+	// 如果没有分页参数，返回全部数据
+	if pageStr == "" && pageSizeStr == "" {
+		var user []User
+		if err := database.DB.Find(&user).Error; err != nil {
+			utils.FailGin(c, http.StatusInternalServerError, utils.ErrInternalServer, utils.ErrorMessage(utils.ErrInternalServer))
+			return
+		}
+		
+		// 不返回密码
+		for i := range user {
+			user[i].Password = ""
+		}
+		
+		utils.OKGin(c, user)
 		return
 	}
-
-	// 不返回密码
-	for i := range user {
-		user[i].Password = ""
-	}
-
-	utils.OKGin(c, user)
-}
-
-// userPagedHandler 分页获取用户列表
-func userPagedHandler(c *gin.Context) {
-	q := c.Request.URL.Query()
-	page, err := strconv.Atoi(q.Get("page"))
+	
+	// 处理分页参数
+	page, err := strconv.Atoi(pageStr)
 	if err != nil || page < 1 {
 		page = 1
 	}
-
-	pageSize, err := strconv.Atoi(q.Get("pageSize"))
+	
+	pageSize, err := strconv.Atoi(pageSizeStr)
 	switch {
 	case err != nil || pageSize <= 0:
 		pageSize = 10
 	case pageSize > 100:
 		pageSize = 100
 	}
-
+	
 	var total int64
 	var user []User
-
+	
 	// 获取总数
 	if err := database.DB.Model(&User{}).Count(&total).Error; err != nil {
 		utils.FailGin(c, http.StatusInternalServerError, utils.ErrInternalServer, "Failed to count user")
 		return
 	}
-
+	
 	// 分页查询
 	offset := (page - 1) * pageSize
 	if err := database.DB.Offset(offset).Limit(pageSize).Find(&user).Error; err != nil {
 		utils.FailGin(c, http.StatusInternalServerError, utils.ErrInternalServer, "Failed to fetch user")
 		return
 	}
-
+	
 	// 不返回密码
 	for i := range user {
 		user[i].Password = ""
 	}
-
+	
+	// 返回分页数据
 	utils.OKGin(c, map[string]any{
 		"list":  user,
 		"total": total,
