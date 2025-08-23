@@ -10,7 +10,7 @@ import (
 
 // User 用户模型
 type User struct {
-	UID       uint           `json:"uid" gorm:"primaryKey"`
+	UID       uint           `json:"uid" gorm:"primaryKey;autoIncrement"`
 	Username  string         `json:"username" gorm:"size:50;uniqueIndex;not null"`
 	Nickname  string         `json:"nickname" gorm:"size:50"`
 	Password  string         `json:"-" gorm:"size:100;not null"`
@@ -25,7 +25,7 @@ type User struct {
 
 // TableName 指定表名
 func (User) TableName() string {
-	return "user"
+	return "users"
 }
 
 // BeforeCreate 创建前的钩子
@@ -59,12 +59,12 @@ func (u *User) CheckPassword(password string) bool {
 
 // IsAdmin 检查是否是管理员
 func (u *User) IsAdmin() bool {
-	return u.Role == utils.AccountStatusAdmin
+	return u.Role == utils.AccountRoleAdmin
 }
 
 // IsAdmin 检查是否是运营者
 func (u *User) IsOperator() bool {
-	return u.Role == utils.AccountStatusOperator
+	return u.Role == utils.AccountRoleOperator
 }
 
 // IsActive 检查用户是否激活

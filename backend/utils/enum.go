@@ -9,7 +9,7 @@ const (
 
 // 用户账号角色
 const (
-	AccountStatusVisitor  = 8  // 普通用户
-	AccountStatusOperator = 16 // 运营者
-	AccountStatusAdmin    = 32 // 管理员
+	AccountRoleVisitor  = 8  // 普通用户
+	AccountRoleOperator = 16 // 运营者
+	AccountRoleAdmin    = 32 // 管理员
 )

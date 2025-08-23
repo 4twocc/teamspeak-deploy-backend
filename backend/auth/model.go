@@ -24,6 +24,15 @@ type LoginRequest struct {
 	Password string `json:"password" binding:"required"`
 }
 
+// RegisterRequest 注册请求
+// 用于解析用户注册请求的 JSON 数据
+type RegisterRequest struct {
+	Username string `json:"username" binding:"required,min=3,max=50"`
+	Password string `json:"password" binding:"required,min=6,max=100"`
+	Email    string `json:"email" binding:"required,email,max=100"`
+	Nickname string `json:"nickname" binding:"max=50"`
+}
+
 // LoginResponse 登录响应
 // 返回给客户端的登录成功信息
 type LoginResponse struct {

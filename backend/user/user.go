@@ -130,8 +130,8 @@ func addHandler(c *gin.Context) {
 
 	// 验证角色
 	if req.Role == 0 {
-		req.Role = utils.AccountStatusVisitor // 默认角色
-	} else if req.Role != utils.AccountStatusAdmin && req.Role != utils.AccountStatusOperator {
+		req.Role = utils.AccountRoleVisitor // 默认角色
+	} else if req.Role != utils.AccountRoleAdmin && req.Role != utils.AccountRoleOperator {
 		utils.FailGin(c, http.StatusBadRequest, utils.ErrInvalidRole, "Invalid role, must be 'admin' or 'operator'")
 		return
 	}

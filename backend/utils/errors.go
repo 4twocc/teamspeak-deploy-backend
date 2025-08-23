@@ -31,6 +31,7 @@ const (
 	ErrUserAlreadyExists
 	ErrUserNotFound
 	ErrAccountDisabled
+	ErrEmailExists
 
 	// 数据库相关错误
 	ErrDatabase = 2000 + iota
@@ -85,6 +86,7 @@ func ErrorMessage(code int) string {
 		ErrUserAlreadyExists:  "user already exists",
 		ErrUserNotFound:       "user not found",
 		ErrAccountDisabled:    "account disabled",
+		ErrEmailExists:        "email already exists",
 
 		// 数据库相关错误
 		ErrDatabase:           "database error",

@@ -113,13 +113,18 @@ func AuthMiddlewareWithGin() gin.HandlerFunc {
 		}
 
 		// 解析令牌
-		_, err := ParseToken(authHeader)
+		claims, err := ParseToken(authHeader)
 		if err != nil {
 			log.Printf("Error parsing token: %v", err)
 			utils.FailGin(c, http.StatusUnauthorized, utils.ErrUnauthorized, "Invalid or expired token")
 			c.Abort()
 			return
 		}
+
+		// 将用户信息设置到上下文中
+		c.Set(string(utils.UserIDKey), claims.UID)
+		c.Set(string(utils.UsernameKey), claims.Username)
+		c.Set(string(utils.UserRoleKey), claims.Role)
 
 		// 调用下一个处理器
 		c.Next()

@@ -29,8 +29,91 @@ func Init(cfg *config.Config) {
 // RegisterRoutes 注册认证相关路由
 func RegisterRoutes(router *gin.Engine) {
 	router.POST(api.LoginPath, loginHandler)
+	router.POST(api.RegisterPath, registerHandler)
 	router.POST(api.LogoutPath, logoutHandler)
 	router.GET(api.UserInfoPath, authMiddlewareWithGin(), infoHandler)
+}
+
+// registerHandler 处理用户注册
+// @param c gin上下文
+// @return 注册成功返回用户信息和token，失败返回错误信息
+func registerHandler(c *gin.Context) {
+	var req RegisterRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.FailGin(c, http.StatusBadRequest, utils.ErrBadJSONBody, utils.ErrorMessage(utils.ErrBadJSONBody))
+		return
+	}
+
+	// 检查用户名是否已存在
+	var existingUser user.User
+	if err := database.DB.Where("username = ?", req.Username).First(&existingUser).Error; err == nil {
+		utils.FailGin(c, http.StatusConflict, utils.ErrUserAlreadyExists, utils.ErrorMessage(utils.ErrUserAlreadyExists))
+		return
+	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+		log.Printf("Error checking username: %v", err)
+		utils.FailGin(c, http.StatusInternalServerError, utils.ErrInternalServer, utils.ErrorMessage(utils.ErrInternalServer))
+		return
+	}
+
+	// 检查邮箱是否已存在
+	if req.Email != "" {
+		if err := database.DB.Where("email = ?", req.Email).First(&existingUser).Error; err == nil {
+			utils.FailGin(c, http.StatusConflict, utils.ErrEmailExists, utils.ErrorMessage(utils.ErrEmailExists))
+			return
+		} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+			log.Printf("Error checking email: %v", err)
+			utils.FailGin(c, http.StatusInternalServerError, utils.ErrInternalServer, utils.ErrorMessage(utils.ErrInternalServer))
+			return
+		}
+	}
+
+	// 创建新用户
+	newUser := user.User{
+		Username: req.Username,
+		Email:    req.Email,
+		Nickname: req.Nickname,
+		Role:     utils.AccountRoleVisitor,  // 默认为访客角色
+		Status:   utils.AccountStatusActive, // 默认为激活状态
+	}
+
+	// 设置密码（加密）
+	if err := newUser.SetPassword(req.Password); err != nil {
+		log.Printf("Error hashing password: %v", err)
+		utils.FailGin(c, http.StatusInternalServerError, utils.ErrInternalServer, utils.ErrorMessage(utils.ErrInternalServer))
+		return
+	}
+
+	// 如果没有设置昵称，使用用户名作为昵称
+	if newUser.Nickname == "" {
+		newUser.Nickname = newUser.Username
+	}
+
+	// 保存到数据库
+	if err := database.DB.Create(&newUser).Error; err != nil {
+		log.Printf("Error creating user: %v", err)
+		// 检查是否是用户名重复错误
+		if strings.Contains(err.Error(), "UNIQUE constraint failed: user.username") {
+			utils.FailGin(c, http.StatusConflict, utils.ErrUserAlreadyExists, utils.ErrorMessage(utils.ErrUserAlreadyExists))
+		} else {
+			utils.FailGin(c, http.StatusInternalServerError, utils.ErrInternalServer, utils.ErrorMessage(utils.ErrInternalServer))
+		}
+		return
+	}
+
+	// 生成 JWT 令牌
+	token, expiresAt, err := generateToken(&newUser)
+	if err != nil {
+		log.Printf("Error generating token: %v", err)
+		utils.FailGin(c, http.StatusInternalServerError, utils.ErrInternalServer, utils.ErrorMessage(utils.ErrInternalServer))
+		return
+	}
+
+	// 返回注册成功响应
+	utils.OKGin(c, LoginResponse{
+		Token:     token,
+		ExpiresAt: expiresAt,
+		User:      NewUserInfo(&newUser),
+	})
 }
 
 // loginHandler 处理用户登录
