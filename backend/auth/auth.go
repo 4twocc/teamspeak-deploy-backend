@@ -101,20 +101,8 @@ func registerHandler(c *gin.Context) {
 		return
 	}
 
-	// 生成 JWT 令牌
-	token, expiresAt, err := generateToken(&newUser)
-	if err != nil {
-		log.Printf("Error generating token: %v", err)
-		utils.FailGin(c, http.StatusInternalServerError, utils.ErrInternalServer, utils.ErrorMessage(utils.ErrInternalServer))
-		return
-	}
-
 	// 返回注册成功响应
-	utils.OKGin(c, LoginResponse{
-		Token:     token,
-		ExpiresAt: expiresAt,
-		User:      NewUserInfo(&newUser),
-	})
+	utils.OKGin(c, nil)
 }
 
 // loginHandler 处理用户登录
