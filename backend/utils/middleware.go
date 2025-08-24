@@ -174,6 +174,72 @@ func Chain(h http.Handler, mws ...func(http.Handler) http.Handler) http.Handler 
 	return h
 }
 
+// RequestIDMiddlewareWithGin 为Gin添加请求ID中间件
+func RequestIDMiddlewareWithGin() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		rid := c.GetHeader("X-Request-ID")
+		if strings.TrimSpace(rid) == "" {
+			// 生成16位随机ID
+			if v, err := GenerateRandomString(16); err == nil {
+				rid = v
+			} else {
+				rid = "unknown"
+			}
+		}
+		// 设置响应头
+		c.Header("X-Request-ID", rid)
+		// 设置到Gin上下文中
+		c.Set(string(requestIDKey), rid)
+		c.Next()
+	}
+}
+
+// ErrorHandlerMiddlewareWithGin 错误处理中间件，捕获内部错误并添加到响应头
+func ErrorHandlerMiddlewareWithGin() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// 创建自定义的ResponseWriter来捕获错误
+		blw := &bodyLogWriter{body: &strings.Builder{}, ResponseWriter: c.Writer}
+		c.Writer = blw
+
+		c.Next()
+
+		// 检查是否有错误发生
+		if len(c.Errors) > 0 {
+			// 获取最后一个错误
+			lastError := c.Errors.Last()
+			if lastError != nil {
+				// 将错误信息添加到响应头
+				c.Header("X-Error-Message", lastError.Error())
+				c.Header("X-Error-Type", "internal")
+			}
+		}
+
+		// 检查HTTP状态码，如果是5xx错误，也添加错误头
+		if c.Writer.Status() >= 500 {
+			if c.GetHeader("X-Error-Message") == "" {
+				c.Header("X-Error-Message", "Internal server error")
+				c.Header("X-Error-Type", "server")
+			}
+		}
+	}
+}
+
+// bodyLogWriter 用于捕获响应体的writer
+type bodyLogWriter struct {
+	gin.ResponseWriter
+	body *strings.Builder
+}
+
+func (w *bodyLogWriter) Write(b []byte) (int, error) {
+	w.body.Write(b)
+	return w.ResponseWriter.Write(b)
+}
+
+func (w *bodyLogWriter) WriteString(s string) (int, error) {
+	w.body.WriteString(s)
+	return w.ResponseWriter.WriteString(s)
+}
+
 // LoggingMiddlewareWithGin 根据开关返回 Gin 日志中间件
 func LoggingMiddlewareWithGin(enabled bool) gin.HandlerFunc {
 	if !enabled {
@@ -181,18 +247,24 @@ func LoggingMiddlewareWithGin(enabled bool) gin.HandlerFunc {
 			c.Next()
 		}
 	}
-	
+
 	return func(c *gin.Context) {
 		start := time.Now()
 		c.Next()
 		dur := time.Since(start)
-		
+
 		// 获取状态码
 		status := c.Writer.Status()
-		
+
 		// 获取请求ID（如果存在）
-		rid, _ := c.Get(string(requestIDKey))
-		
+		ridValue, exists := c.Get(string(requestIDKey))
+		rid := "unknown"
+		if exists {
+			if ridStr, ok := ridValue.(string); ok {
+				rid = ridStr
+			}
+		}
+
 		log.Printf("%s %s %d %s rid=%s", c.Request.Method, c.Request.URL.Path, status, dur, rid)
 	}
 }
@@ -200,7 +272,7 @@ func LoggingMiddlewareWithGin(enabled bool) gin.HandlerFunc {
 // RateLimitMiddlewareWithGin 创建基于IP的速率限制 Gin 中间件
 func RateLimitMiddlewareWithGin(r rate.Limit, b int) gin.HandlerFunc {
 	limiter := NewIPRateLimiter(r, b)
-	
+
 	return func(c *gin.Context) {
 		// 添加空指针检查
 		if limiter == nil {
@@ -209,7 +281,7 @@ func RateLimitMiddlewareWithGin(r rate.Limit, b int) gin.HandlerFunc {
 			c.Next()
 			return
 		}
-		
+
 		ip := c.ClientIP()
 		limiterInstance := limiter.GetLimiter(ip)
 		if limiterInstance == nil {
@@ -218,18 +290,21 @@ func RateLimitMiddlewareWithGin(r rate.Limit, b int) gin.HandlerFunc {
 			c.Next()
 			return
 		}
-		
-		// 检查是否允许该请求通过
+
 		// 添加对Allow方法调用的保护
-		defer func() {
-			if err := recover(); err != nil {
-				log.Printf("Warning: rate limiter Allow() panic recovered: %v", err)
-				// 即使限流器出错，也允许请求通过
-				c.Next()
-			}
+		var allowed bool
+		func() {
+			defer func() {
+				if err := recover(); err != nil {
+					log.Printf("Warning: rate limiter Allow() panic recovered: %v", err)
+					// 即使限流器出错，也允许请求通过
+					allowed = true
+				}
+			}()
+			allowed = limiterInstance.Allow()
 		}()
-		
-		if !limiterInstance.Allow() {
+
+		if !allowed {
 			c.JSON(http.StatusTooManyRequests, gin.H{
 				"code":    ErrTooManyRequests,
 				"message": "Too many requests",

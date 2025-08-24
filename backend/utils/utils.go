@@ -81,6 +81,45 @@ func Fail(w http.ResponseWriter, httpStatus int, code int, message string) {
 
 // FailGin 失败响应（自定义HTTP状态与业务错误码）(gin)
 func FailGin(c *gin.Context, httpStatus int, code int, message string) {
+	// 如果是服务器内部错误，添加错误信息到响应头
+	if httpStatus >= 500 {
+		c.Header("X-Error-Message", message)
+		c.Header("X-Error-Type", "server")
+		c.Header("X-Error-Code", fmt.Sprintf("%d", code))
+	} else if httpStatus >= 400 {
+		// 客户端错误也可以选择性地添加到头部
+		c.Header("X-Error-Type", "client")
+		c.Header("X-Error-Code", fmt.Sprintf("%d", code))
+	}
+
+	c.JSON(httpStatus, APIResponse{
+		Code:      code,
+		Message:   message,
+		Data:      nil,
+		Timestamp: time.Now().UTC(),
+	})
+}
+
+// FailGinWithError 失败响应，同时将错误添加到Gin错误列表中
+func FailGinWithError(c *gin.Context, httpStatus int, code int, message string, err error) {
+	// 将错误添加到Gin的错误列表中，这样错误处理中间件可以捕获
+	if err != nil {
+		c.Error(err)
+	}
+
+	// 添加错误信息到响应头
+	if httpStatus >= 500 {
+		c.Header("X-Error-Message", message)
+		c.Header("X-Error-Type", "server")
+		c.Header("X-Error-Code", fmt.Sprintf("%d", code))
+		if err != nil {
+			c.Header("X-Internal-Error", err.Error())
+		}
+	} else if httpStatus >= 400 {
+		c.Header("X-Error-Type", "client")
+		c.Header("X-Error-Code", fmt.Sprintf("%d", code))
+	}
+
 	c.JSON(httpStatus, APIResponse{
 		Code:      code,
 		Message:   message,

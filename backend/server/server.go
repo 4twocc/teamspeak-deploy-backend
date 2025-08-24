@@ -128,6 +128,12 @@ func SetupRouter(config *config.Config) (*gin.Engine, error) {
 	auth.SetServerConfig(&configWrapper{config: config})
 
 	// 添加中间件（必须在注册路由之前）
+	// 设置请求ID中间件（最先设置，确保所有请求都有ID）
+	routerEngine.Use(utils.RequestIDMiddlewareWithGin())
+
+	// 设置错误处理中间件（在其他中间件之前，确保能捕获所有错误）
+	routerEngine.Use(utils.ErrorHandlerMiddlewareWithGin())
+
 	// 注意：Gin的CORS中间件需要单独配置
 	if len(config.Server.CORS.AllowedOrigins) > 0 {
 		routerEngine.Use(utils.NewCORSWithGin(utils.CORSConfig{

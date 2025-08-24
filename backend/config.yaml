@@ -25,7 +25,11 @@ server:
     allowed_headers:
       - "*"
     expose_headers:
-      - ""
+      - "X-Request-ID"
+      - "X-Error-Message"
+      - "X-Error-Type"
+      - "X-Error-Code"
+      - "X-Internal-Error"
     allow_credentials: false
   middleware:
     enable_access_log: true
