@@ -70,7 +70,7 @@ teamspeak:
 security:
   password_salt_rounds: 10
   expires_in: 30 # 30天有效期
-  token_prefix: "zhuwo "
+  token_prefix: "Bearer "
 
 deployment:
   script_dir: "deploy-scripts"

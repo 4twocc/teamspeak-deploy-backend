@@ -191,7 +191,7 @@ func infoHandler(c *gin.Context) {
 	// 获取要查询的用户ID
 	var targetUserID uint64
 	uidParam := c.Param("uid")
-	
+
 	if uidParam != "" {
 		// 如果提供了uid参数，解析并使用该uid
 		parsedUID, err := strconv.ParseUint(uidParam, 10, 64)
@@ -259,7 +259,7 @@ func generateToken(user *user.User) (string, time.Time, error) {
 
 // ParseToken 解析并验证 JWT 令牌
 func ParseToken(tokenString string) (*Claims, error) {
-	// 移除 Bearer 前缀
+	// 移除配置的 token 前缀
 	tokenString = strings.TrimPrefix(tokenString, configInstance.Security.TokenPrefix)
 
 	// 解析令牌

@@ -348,7 +348,7 @@ func DefaultConfig() *Config {
 			JWTSecret:          "",
 			PasswordSaltRounds: 10,
 			ExpiresIn:          24,
-			TokenPrefix:        "zhuwo ",
+			TokenPrefix:        "Bearer ",
 		},
 		Deployment: DeploymentConfig{
 			ScriptDir: "deploy-scripts",
