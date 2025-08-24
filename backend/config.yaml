@@ -68,9 +68,9 @@ teamspeak:
   reconnect_max_backoff: 60s
 
 security:
-  # jwt_secret 通过环境变量 JWT_SECRET 设置
   password_salt_rounds: 10
   expires_in: 30 # 30天有效期
+  token_prefix: "zhuwo "
 
 deployment:
   script_dir: "deploy-scripts"
