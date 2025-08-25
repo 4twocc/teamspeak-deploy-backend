@@ -153,6 +153,18 @@ func loginHandler(c *gin.Context) {
 		return
 	}
 
+	// 将 JWT token 写入 cookie
+	maxAge := int(time.Until(expiresAt).Seconds())
+	c.SetCookie(
+		"auth_token", // cookie名称
+		token,        // cookie值（JWT token）
+		maxAge,       // 过期时间（秒）
+		"/",          // 路径
+		"",           // 域名（空表示当前域名）
+		true,         // secure（HTTPS）
+		true,         // httpOnly（防止XSS）
+	)
+
 	// 返回登录成功响应
 	utils.OKGin(c, LoginResponse{
 		Token:     token,
@@ -210,8 +222,21 @@ func infoHandler(c *gin.Context) {
 }
 
 // logoutHandler 处理用户登出
+// 清除客户端的认证cookie并返回登出成功消息
 func logoutHandler(c *gin.Context) {
+	// 清除认证 cookie
+	c.SetCookie(
+		"auth_token", // cookie名称
+		"",           // 空值
+		-1,           // MaxAge设为-1立即过期
+		"/",          // 路径
+		"",           // 域名
+		true,         // secure
+		true,         // httpOnly
+	)
+
 	// 在基于 JWT 的系统中，登出通常由前端删除 token 实现
+	// 现在我们同时清除了服务端设置的 cookie
 	utils.OKGin(c, map[string]string{"message": "Logout successful"})
 }
 

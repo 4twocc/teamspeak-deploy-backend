@@ -106,14 +106,25 @@ func AuthMiddlewareWithGin() gin.HandlerFunc {
 
 		// 获取 Authorization 头
 		authHeader := c.GetHeader("Authorization")
-		if authHeader == "" {
-			utils.FailGin(c, http.StatusUnauthorized, utils.ErrUnauthorized, utils.ErrorMessage(utils.ErrUnauthorized))
-			c.Abort()
-			return
+		var tokenString string
+
+		if authHeader != "" {
+			// 优先使用 Authorization 头中的 token
+			tokenString = authHeader
+		} else {
+			// 如果 Authorization 头不存在，尝试从 cookie 中获取 token
+			cookieToken, err := c.Cookie("auth_token")
+			if err != nil || cookieToken == "" {
+				utils.FailGin(c, http.StatusUnauthorized, utils.ErrUnauthorized, utils.ErrorMessage(utils.ErrUnauthorized))
+				c.Abort()
+				return
+			}
+			// 为 cookie 中的 token 添加 Bearer 前缀
+			tokenString = configInstance.Security.TokenPrefix + cookieToken
 		}
 
 		// 解析令牌
-		claims, err := ParseToken(authHeader)
+		claims, err := ParseToken(tokenString)
 		if err != nil {
 			log.Printf("Error parsing token: %v", err)
 			utils.FailGin(c, http.StatusUnauthorized, utils.ErrUnauthorized, "Invalid or expired token")
