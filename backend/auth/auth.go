@@ -153,16 +153,16 @@ func loginHandler(c *gin.Context) {
 		return
 	}
 
-	// 将 JWT token 写入 cookie
+	// 将 JWT token 写入 cookie（使用配置文件中的设置）
 	maxAge := int(time.Until(expiresAt).Seconds())
 	c.SetCookie(
-		"auth_token", // cookie名称
-		token,        // cookie值（JWT token）
-		maxAge,       // 过期时间（秒）
-		"/",          // 路径
-		"",           // 域名（空表示当前域名）
-		true,         // secure（HTTPS）
-		true,         // httpOnly（防止XSS）
+		configInstance.Security.CookieName,     // cookie名称
+		token,                                  // cookie值（JWT token）
+		maxAge,                                 // 过期时间（秒）
+		configInstance.Security.CookiePath,     // 路径
+		configInstance.Security.CookieDomain,   // 域名
+		configInstance.Security.CookieSecure,   // secure（HTTPS）
+		configInstance.Security.CookieHttpOnly, // httpOnly（防止XSS）
 	)
 
 	// 返回登录成功响应
@@ -224,15 +224,15 @@ func infoHandler(c *gin.Context) {
 // logoutHandler 处理用户登出
 // 清除客户端的认证cookie并返回登出成功消息
 func logoutHandler(c *gin.Context) {
-	// 清除认证 cookie
+	// 清除认证 cookie（使用配置文件中的设置）
 	c.SetCookie(
-		"auth_token", // cookie名称
-		"",           // 空值
-		-1,           // MaxAge设为-1立即过期
-		"/",          // 路径
-		"",           // 域名
-		true,         // secure
-		true,         // httpOnly
+		configInstance.Security.CookieName,     // cookie名称
+		"",                                     // 空值
+		-1,                                     // MaxAge设为-1立即过期
+		configInstance.Security.CookiePath,     // 路径
+		configInstance.Security.CookieDomain,   // 域名
+		configInstance.Security.CookieSecure,   // secure
+		configInstance.Security.CookieHttpOnly, // httpOnly
 	)
 
 	// 在基于 JWT 的系统中，登出通常由前端删除 token 实现

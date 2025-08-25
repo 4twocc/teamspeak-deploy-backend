@@ -4,7 +4,6 @@ package main
 import (
 	"log"
 	"os"
-	"time"
 
 	"teamspeak-one-click-deploy/auth"
 	"teamspeak-one-click-deploy/config"
@@ -19,56 +18,45 @@ import (
 )
 
 func main() {
-	// 设置时区为北京时间 UTC+8
-	location, err := time.LoadLocation("Asia/Shanghai")
-	if err != nil {
-		log.Printf("Warning: failed to load Asia/Shanghai timezone: %v", err)
-		// 如果加载时区失败，尝试使用UTC+8的固定时区偏移
-		location = time.FixedZone("UTC+8", 8*60*60)
-		log.Println("Using fixed UTC+8 timezone")
-	}
-	time.Local = location
-	log.Println("Set timezone to Beijing (UTC+8)")
-
 	// 先尝试加载 .env 文件（如果存在），使得 os.Getenv 能读取这些值
-	if err := utils.DiscoverAndLoadDotEnv(); err != nil {
-		log.Printf("No .env files loaded: %v", err)
+	if loadCfgErr := utils.DiscoverAndLoadDotEnv(); loadCfgErr != nil {
+		log.Printf("No .env files loaded: %v", loadCfgErr)
 	}
 
 	// Load configuration
-	cfg, err := config.Load("config.yaml")
-	if err != nil {
-		log.Fatalf("Failed to load config: %v", err)
+	cfg, loadCfgErr := config.Load("config.yaml")
+	if loadCfgErr != nil {
+		log.Fatalf("Failed to load config: %v", loadCfgErr)
 	}
 
 	// 初始化认证模块
 	auth.Init(cfg)
 
 	// 初始化数据库
-	if err := server.InitDatabase(cfg); err != nil {
-		log.Fatalf("Failed to initialize database: %v", err)
+	if dataBaseErr := server.InitDatabase(cfg); dataBaseErr != nil {
+		log.Fatalf("Failed to initialize database: %v", dataBaseErr)
 	}
 
 	// 确保在程序退出时关闭数据库连接
 	defer func() {
-		if err := database.Close(); err != nil {
-			log.Printf("Error closing database connection: %v", err)
+		if dataBaseCloseErr := database.Close(); dataBaseCloseErr != nil {
+			log.Printf("Error closing database connection: %v", dataBaseCloseErr)
 		}
 	}()
 
 	// 初始化用户服务
-	if err := user.Initialize(); err != nil {
-		log.Fatalf("Failed to initialize user service: %v", err)
+	if userIniterr := user.Initialize(); userIniterr != nil {
+		log.Fatalf("Failed to initialize user service: %v", userIniterr)
 	}
 
 	// 初始化实例服务
-	if err := instance.Initialize(); err != nil {
-		log.Fatalf("Failed to initialize instance service: %v", err)
+	if instanceInitErr := instance.Initialize(); instanceInitErr != nil {
+		log.Fatalf("Failed to initialize instance service: %v", instanceInitErr)
 	}
 
 	// 初始化部署模块
-	if err := server.InitDeployment(cfg); err != nil {
-		log.Fatalf("Failed to initialize deployment module: %v", err)
+	if initDeployErr := server.InitDeployment(cfg); initDeployErr != nil {
+		log.Fatalf("Failed to initialize deployment module: %v", initDeployErr)
 	}
 
 	// 更新监控模块配置（使用已加载的配置）
@@ -76,8 +64,8 @@ func main() {
 
 	// 启动监控服务（在单独的 goroutine 中启动以避免阻塞主线程）
 	go func() {
-		if err := monitor.Run(cfg); err != nil {
-			log.Printf("Failed to start monitoring service: %v", err)
+		if monitorRunErr := monitor.Run(cfg); monitorRunErr != nil {
+			log.Printf("Failed to start monitoring service: %v", monitorRunErr)
 		}
 	}()
 

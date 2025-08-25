@@ -112,8 +112,8 @@ func AuthMiddlewareWithGin() gin.HandlerFunc {
 			// 优先使用 Authorization 头中的 token
 			tokenString = authHeader
 		} else {
-			// 如果 Authorization 头不存在，尝试从 cookie 中获取 token
-			cookieToken, err := c.Cookie("auth_token")
+			// 如果 Authorization 头不存在，尝试从 cookie 中获取 token（使用配置文件中的cookie名称）
+			cookieToken, err := c.Cookie(configInstance.Security.CookieName)
 			if err != nil || cookieToken == "" {
 				utils.FailGin(c, http.StatusUnauthorized, utils.ErrUnauthorized, utils.ErrorMessage(utils.ErrUnauthorized))
 				c.Abort()

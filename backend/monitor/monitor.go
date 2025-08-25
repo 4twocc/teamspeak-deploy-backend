@@ -410,17 +410,6 @@ func metricsHandler() http.Handler {
 
 // Run 运行监控服务
 func Run(cfg *configPkg.Config) error {
-	// 设置时区为北京时间 UTC+8
-	location, err := time.LoadLocation("Asia/Shanghai")
-	if err != nil {
-		log.Printf("Warning: failed to load Asia/Shanghai timezone: %v", err)
-		// 如果加载时区失败，尝试使用UTC+8的固定时区偏移
-		location = time.FixedZone("UTC+8", 8*60*60)
-		log.Println("Using fixed UTC+8 timezone for monitoring service")
-	}
-	time.Local = location
-	log.Println("Set timezone to Beijing (UTC+8) for monitoring service")
-
 	// 初始化监控模块
 	if err := Initialize(cfg); err != nil {
 		return fmt.Errorf("failed to initialize monitoring module: %w", err)

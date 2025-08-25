@@ -150,6 +150,14 @@ type SecurityConfig struct {
 	PasswordSaltRounds int    `yaml:"password_salt_rounds"`
 	ExpiresIn          int    `yaml:"expires_in"`
 	TokenPrefix        string `yaml:"token_prefix"`
+
+	// Cookie相关配置
+	CookieName     string `yaml:"cookie_name"`     // Cookie名称
+	CookieSecure   bool   `yaml:"cookie_secure"`   // 是否只在HTTPS下发送Cookie
+	CookieHttpOnly bool   `yaml:"cookie_httponly"` // 是否设置HttpOnly属性
+	CookieSameSite string `yaml:"cookie_samesite"` // SameSite策略: "Strict", "Lax", "None"
+	CookiePath     string `yaml:"cookie_path"`     // Cookie路径
+	CookieDomain   string `yaml:"cookie_domain"`   // Cookie域名
 }
 
 // DeploymentConfig 部署配置
@@ -349,6 +357,14 @@ func DefaultConfig() *Config {
 			PasswordSaltRounds: 10,
 			ExpiresIn:          24,
 			TokenPrefix:        "Bearer ",
+
+			// Cookie相关配置默认值
+			CookieName:     "auth_token",
+			CookieSecure:   true,
+			CookieHttpOnly: true,
+			CookieSameSite: "Strict",
+			CookiePath:     "/",
+			CookieDomain:   "",
 		},
 		Deployment: DeploymentConfig{
 			ScriptDir: "deploy-scripts",
