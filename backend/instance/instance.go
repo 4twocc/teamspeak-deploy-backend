@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"teamspeak-one-click-deploy/database"
+	"teamspeak-one-click-deploy/logs"
 	"teamspeak-one-click-deploy/utils"
 
 	"github.com/gin-gonic/gin"
@@ -32,10 +33,17 @@ var (
 	alertManager    *AlertManager
 )
 
+// SetLogService 设置全局实例服务的日志服务
+func SetLogService(logService logs.LogService) {
+	if instanceService != nil {
+		instanceService.SetLogService(logService)
+	}
+}
+
 // Initialize 初始化实例服务
 func Initialize() error {
 	// 初始化告警管理器
-	alertManager = NewAlertManager(database.DB)
+	alertManager = NewAlertManager(database.DB, nil)
 
 	// 确保数据库表已创建
 	if err := ensureTables(database.DB); err != nil {

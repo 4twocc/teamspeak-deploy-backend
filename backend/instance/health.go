@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"teamspeak-one-click-deploy/logs"
 	"teamspeak-one-click-deploy/utils"
 	"time"
 
@@ -425,11 +426,12 @@ type HealthMonitor struct {
 	instancesMutex    sync.RWMutex
 	stopChan          chan struct{}
 	resourceCheckChan chan string
+	logService        logs.LogService
 }
 
 // NewHealthMonitor 创建健康监控器
 func NewHealthMonitor(db *gorm.DB) *HealthMonitor {
-	return &HealthMonitor{
+	hm := &HealthMonitor{
 		db:                db,
 		checkers:          make([]HealthChecker, 0),
 		checkInterval:     defaultHealthCheckInterval,
@@ -437,6 +439,17 @@ func NewHealthMonitor(db *gorm.DB) *HealthMonitor {
 		stopChan:          make(chan struct{}),
 		resourceCheckChan: make(chan string, 100),
 	}
+
+	// 尝试初始化日志服务
+	if ls, err := logs.NewLogService(nil, logs.LogConfig{
+		Level:      "info",
+		EnableFile: true,
+		FilePath:   "logs/health.log",
+	}); err == nil {
+		hm.logService = ls
+	}
+
+	return hm
 }
 
 // AddChecker 添加健康检查器
@@ -446,7 +459,11 @@ func (m *HealthMonitor) AddChecker(checker HealthChecker) {
 
 // Start 启动健康监控
 func (m *HealthMonitor) Start() {
-	log.Println("Starting health monitor...")
+	if m.logService != nil {
+		m.logService.Info("health", "Starting health monitor", logs.LogField{Key: "component", Value: "HealthMonitor"})
+	} else {
+		log.Println("Starting health monitor...")
+	}
 
 	// 启动健康检查循环
 	go m.healthCheckLoop()
@@ -521,7 +538,11 @@ func (m *HealthMonitor) checkInstance(instanceID string) {
 	// 从数据库获取实例信息
 	var instance Instance
 	if err := m.db.First(&instance, "id = ?", instanceID).Error; err != nil {
-		log.Printf("Failed to get instance %s: %v", instanceID, err)
+		if m.logService != nil {
+			m.logService.Error("health", "Failed to get instance", logs.LogField{Key: "instance_id", Value: instanceID}, logs.LogField{Key: "error", Value: err})
+		} else {
+			log.Printf("Failed to get instance %s: %v", instanceID, err)
+		}
 		return
 	}
 
@@ -529,12 +550,20 @@ func (m *HealthMonitor) checkInstance(instanceID string) {
 	for _, checker := range m.checkers {
 		result, err := checker.Check(&instance)
 		if err != nil {
-			log.Printf("Health check failed for instance %s: %v", instanceID, err)
+			if m.logService != nil {
+				m.logService.Error("health", "Health check failed", logs.LogField{Key: "instance_id", Value: instanceID}, logs.LogField{Key: "error", Value: err})
+			} else {
+				log.Printf("Health check failed for instance %s: %v", instanceID, err)
+			}
 			continue
 		}
 
 		// 记录健康检查结果
-		log.Printf("Health check for instance %s: %s", instanceID, result.Message)
+		if m.logService != nil {
+			m.logService.Info("health", "Health check completed", logs.LogField{Key: "instance_id", Value: instanceID}, logs.LogField{Key: "message", Value: result.Message})
+		} else {
+			log.Printf("Health check for instance %s: %s", instanceID, result.Message)
+		}
 
 		// 如果检查不健康，触发告警
 		if !result.IsHealthy {
@@ -558,7 +587,11 @@ func (m *HealthMonitor) checkInstanceResources(instanceID string) {
 	// 从数据库获取实例信息
 	var instance Instance
 	if err := m.db.First(&instance, "id = ?", instanceID).Error; err != nil {
-		log.Printf("Failed to get instance %s for resource check: %v", instanceID, err)
+		if m.logService != nil {
+			m.logService.Error("health", "Failed to get instance for resource check", logs.LogField{Key: "instance_id", Value: instanceID}, logs.LogField{Key: "error", Value: err})
+		} else {
+			log.Printf("Failed to get instance %s for resource check: %v", instanceID, err)
+		}
 		return
 	}
 
@@ -567,12 +600,20 @@ func (m *HealthMonitor) checkInstanceResources(instanceID string) {
 		if resourceChecker, ok := checker.(*ResourceHealthChecker); ok {
 			result, err := resourceChecker.Check(&instance)
 			if err != nil {
-				log.Printf("Resource check failed for instance %s: %v", instanceID, err)
+				if m.logService != nil {
+					m.logService.Error("health", "Resource check failed", logs.LogField{Key: "instance_id", Value: instanceID}, logs.LogField{Key: "error", Value: err})
+				} else {
+					log.Printf("Resource check failed for instance %s: %v", instanceID, err)
+				}
 				continue
 			}
 
 			// 记录资源检查结果
-			log.Printf("Resource check for instance %s: %s", instanceID, result.Message)
+			if m.logService != nil {
+				m.logService.Info("health", "Resource check completed", logs.LogField{Key: "instance_id", Value: instanceID}, logs.LogField{Key: "message", Value: result.Message})
+			} else {
+				log.Printf("Resource check for instance %s: %s", instanceID, result.Message)
+			}
 
 			// 如果资源使用超过限制，触发告警
 			if !result.IsHealthy {
@@ -585,13 +626,21 @@ func (m *HealthMonitor) checkInstanceResources(instanceID string) {
 // triggerAlert 触发告警
 func (m *HealthMonitor) triggerAlert(instance *Instance, result *HealthCheckResult) {
 	// 记录告警日志
-	log.Printf("ALERT: Instance %s - %s", instance.ID, result.Message)
+	if m.logService != nil {
+		m.logService.Error("health", "ALERT: Instance health check failed", logs.LogField{Key: "instance_id", Value: instance.ID}, logs.LogField{Key: "message", Value: result.Message})
+	} else {
+		log.Printf("ALERT: Instance %s - %s", instance.ID, result.Message)
+	}
 
 	// 更新实例状态为错误
 	if instance.Status != StatusError {
 		instance.Status = StatusError
 		if err := m.db.Save(instance).Error; err != nil {
-			log.Printf("Failed to update instance status to error: %v", err)
+			if m.logService != nil {
+				m.logService.Error("health", "Failed to update instance status to error", logs.LogField{Key: "instance_id", Value: instance.ID}, logs.LogField{Key: "error", Value: err})
+			} else {
+				log.Printf("Failed to update instance status to error: %v", err)
+			}
 		}
 	}
 
@@ -606,7 +655,11 @@ func (m *HealthMonitor) triggerAlert(instance *Instance, result *HealthCheckResu
 
 	// 记录到实例日志
 	if err := instance.AddLog(m.db, "error", logMsg); err != nil {
-		log.Printf("Failed to add error log: %v", err)
+		if m.logService != nil {
+			m.logService.Error("health", "Failed to add error log", logs.LogField{Key: "instance_id", Value: instance.ID}, logs.LogField{Key: "error", Value: err})
+		} else {
+			log.Printf("Failed to add error log: %v", err)
+		}
 	}
 
 	// TODO: 发送告警通知（邮件、Webhook等）

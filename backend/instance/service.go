@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"teamspeak-one-click-deploy/logs"
 	"teamspeak-one-click-deploy/utils"
 
 	"github.com/google/uuid"
@@ -27,6 +28,11 @@ var (
 	ErrOperationNotAllowed = errors.New("operation not allowed")
 )
 
+// SetLogService 设置日志服务
+func (s *Service) SetLogService(logService logs.LogService) {
+	s.logService = logService
+}
+
 // Service 实例服务
 // 提供对 TeamSpeak 实例的 CRUD 操作和状态管理
 type Service struct {
@@ -34,6 +40,7 @@ type Service struct {
 	healthMonitor  *HealthMonitor
 	restartManager *RestartManager
 	alertManager   *AlertManager
+	logService     logs.LogService
 }
 
 // CreateInstanceInput 创建实例的输入参数
@@ -80,11 +87,28 @@ type RestartConfig struct {
 
 // NewService 创建新的实例服务
 func NewService(db *gorm.DB, alertManager *AlertManager) *Service {
+	// 创建日志服务
+	logConfig := logs.LogConfig{
+		Level:         "info",
+		EnableDB:      true,
+		RetentionDays: 30,
+		BatchSize:     100,
+		BatchInterval: 60,
+		EnableFile:    true,
+		FilePath:      "logs/instance.log",
+	}
+	logService, err := logs.NewLogService(db, logConfig)
+	if err != nil {
+		// 如果日志服务创建失败，使用标准日志记录
+		log.Printf("Failed to create log service: %v", err)
+	}
+
 	service := &Service{
 		db:             db,
 		healthMonitor:  NewHealthMonitor(db),
 		restartManager: NewRestartManager(db),
 		alertManager:   alertManager,
+		logService:     logService,
 	}
 
 	// 添加默认的健康检查器
@@ -122,13 +146,21 @@ func (s *Service) monitorAllInstances() {
 	var instances []Instance
 	if err := s.db.Where("status IN (?)",
 		[]InstanceStatus{StatusStarting, StatusRunning}).Find(&instances).Error; err != nil {
-		log.Printf("Failed to load running instances: %v", err)
+		if s.logService != nil {
+			s.logService.Error("instance", "Failed to load running instances", logs.LogField{Key: "error", Value: err})
+		} else {
+			log.Printf("Failed to load running instances: %v", err)
+		}
 		return
 	}
 
 	for _, instance := range instances {
 		s.healthMonitor.AddInstance(instance.ID)
-		log.Printf("Added instance %s to health monitoring", instance.ID)
+		if s.logService != nil {
+			s.logService.Info("instance", "Added instance to health monitoring", logs.LogField{Key: "instance_id", Value: instance.ID})
+		} else {
+			log.Printf("Added instance %s to health monitoring", instance.ID)
+		}
 	}
 }
 
@@ -404,8 +436,12 @@ func (s *Service) startInstanceProcess(instance *Instance) {
 		if err := s.prepareInstanceEnvironment(instance); err != nil {
 			instance.AddLog(tx, "error", fmt.Sprintf("准备环境失败: %v", err))
 			instance.SetStatus(StatusError)
-			if err := tx.Save(instance).Error; err != nil {
-				log.Printf("更新实例状态失败: %v", err)
+			if txInitErr := tx.Save(instance).Error; txInitErr != nil {
+				if s.logService != nil {
+					s.logService.Error("instance", "更新实例状态失败", logs.LogField{Key: "error", Value: txInitErr}, logs.LogField{Key: "instance_id", Value: instance.ID})
+				} else {
+					log.Printf("更新实例状态失败: %v", txInitErr)
+				}
 			}
 			return err
 		}
@@ -415,8 +451,12 @@ func (s *Service) startInstanceProcess(instance *Instance) {
 		if err != nil {
 			instance.AddLog(tx, "error", fmt.Sprintf("构建启动命令失败: %v", err))
 			instance.SetStatus(StatusError)
-			if err := tx.Save(instance).Error; err != nil {
-				log.Printf("更新实例状态失败: %v", err)
+			if txBuildErr := tx.Save(instance).Error; txBuildErr != nil {
+				if s.logService != nil {
+					s.logService.Error("instance", "更新实例状态失败", logs.LogField{Key: "error", Value: txBuildErr}, logs.LogField{Key: "instance_id", Value: instance.ID})
+				} else {
+					log.Printf("更新实例状态失败: %v", txBuildErr)
+				}
 			}
 			return err
 		}
@@ -426,7 +466,11 @@ func (s *Service) startInstanceProcess(instance *Instance) {
 			instance.AddLog(tx, "error", fmt.Sprintf("启动进程失败: %v", err))
 			instance.SetStatus(StatusError)
 			if err := tx.Save(instance).Error; err != nil {
-				log.Printf("更新实例状态失败: %v", err)
+				if s.logService != nil {
+					s.logService.Error("instance", "更新实例状态失败", logs.LogField{Key: "error", Value: err}, logs.LogField{Key: "instance_id", Value: instance.ID})
+				} else {
+					log.Printf("更新实例状态失败: %v", err)
+				}
 			}
 			return err
 		}
@@ -446,7 +490,11 @@ func (s *Service) startInstanceProcess(instance *Instance) {
 
 		// 6. 添加启动成功日志
 		if err := instance.AddLog(tx, "info", "TeamSpeak 服务器启动成功"); err != nil {
-			log.Printf("添加启动日志失败: %v", err)
+			if s.logService != nil {
+				s.logService.Error("instance", "添加启动日志失败", logs.LogField{Key: "error", Value: err}, logs.LogField{Key: "instance_id", Value: instance.ID})
+			} else {
+				log.Printf("添加启动日志失败: %v", err)
+			}
 		}
 
 		// 7. 启动监控协程
@@ -456,7 +504,11 @@ func (s *Service) startInstanceProcess(instance *Instance) {
 	})
 
 	if err != nil {
-		log.Printf("启动实例 %s 失败: %v", instance.ID, err)
+		if s.logService != nil {
+			s.logService.Error("instance", "启动实例失败", logs.LogField{Key: "error", Value: err}, logs.LogField{Key: "instance_id", Value: instance.ID})
+		} else {
+			log.Printf("启动实例 %s 失败: %v", instance.ID, err)
+		}
 	}
 }
 
@@ -464,21 +516,37 @@ func (s *Service) startInstanceProcess(instance *Instance) {
 func (s *Service) prepareInstanceEnvironment(instance *Instance) error {
 	// 0. 验证输入
 	if instance == nil {
-		log.Printf("错误: 实例对象为空")
+		if s.logService != nil {
+			s.logService.Error("instance", "错误: 实例对象为空")
+		} else {
+			log.Printf("错误: 实例对象为空")
+		}
 		return &utils.ValidationError{
 			Code:    utils.ErrTSInstanceIsNil,
 			Message: "实例对象不能为空",
 		}
 	}
 
-	log.Printf("开始准备实例 %s 的运行环境", instance.ID)
+	if s.logService != nil {
+		s.logService.Info("instance", "开始准备实例运行环境", logs.LogField{Key: "instance_id", Value: instance.ID})
+	} else {
+		log.Printf("开始准备实例 %s 的运行环境", instance.ID)
+	}
 
 	// 1. 创建实例目录
 	instanceDir := filepath.Join("/var/lib/teamspeak", instance.ID)
-	log.Printf("创建实例目录: %s", instanceDir)
+	if s.logService != nil {
+		s.logService.Info("instance", "创建实例目录", logs.LogField{Key: "instance_id", Value: instance.ID}, logs.LogField{Key: "directory", Value: instanceDir})
+	} else {
+		log.Printf("创建实例目录: %s", instanceDir)
+	}
 
 	if err := os.MkdirAll(instanceDir, 0755); err != nil {
-		log.Printf("创建实例目录失败: %v", err)
+		if s.logService != nil {
+			s.logService.Error("instance", "创建实例目录失败", logs.LogField{Key: "error", Value: err}, logs.LogField{Key: "instance_id", Value: instance.ID}, logs.LogField{Key: "directory", Value: instanceDir})
+		} else {
+			log.Printf("创建实例目录失败: %v", err)
+		}
 		return &utils.ValidationError{
 			Code:    utils.ErrTSInstanceDirEmpty,
 			Message: fmt.Sprintf("创建实例目录失败: %v", err),
@@ -486,9 +554,17 @@ func (s *Service) prepareInstanceEnvironment(instance *Instance) error {
 	}
 
 	// 2. 验证端口是否被占用
-	log.Printf("检查端口可用性...")
+	if s.logService != nil {
+		s.logService.Info("instance", "检查端口可用性", logs.LogField{Key: "instance_id", Value: instance.ID})
+	} else {
+		log.Printf("检查端口可用性...")
+	}
 	if err := s.checkPortsAvailability(instance); err != nil {
-		log.Printf("端口检查失败: %v", err)
+		if s.logService != nil {
+			s.logService.Error("instance", "端口检查失败", logs.LogField{Key: "error", Value: err}, logs.LogField{Key: "instance_id", Value: instance.ID})
+		} else {
+			log.Printf("端口检查失败: %v", err)
+		}
 		return &utils.ValidationError{
 			Code:    utils.ErrTSInstancePortConflict,
 			Message: err.Error(),
@@ -497,43 +573,83 @@ func (s *Service) prepareInstanceEnvironment(instance *Instance) error {
 
 	// 3. 生成配置文件
 	configPath := filepath.Join(instanceDir, "ts3server.ini")
-	log.Printf("生成配置文件: %s", configPath)
+	if s.logService != nil {
+		s.logService.Info("instance", "生成配置文件", logs.LogField{Key: "instance_id", Value: instance.ID}, logs.LogField{Key: "config_path", Value: configPath})
+	} else {
+		log.Printf("生成配置文件: %s", configPath)
+	}
 
 	if err := s.generateConfigFile(instance, configPath); err != nil {
-		log.Printf("生成配置文件失败: %v", err)
+		if s.logService != nil {
+			s.logService.Error("instance", "生成配置文件失败", logs.LogField{Key: "error", Value: err}, logs.LogField{Key: "instance_id", Value: instance.ID})
+		} else {
+			log.Printf("生成配置文件失败: %v", err)
+		}
 		return fmt.Errorf("生成配置文件失败: %w", err)
 	}
 
 	// 4. 设置目录权限和所有者
-	log.Printf("设置目录权限和所有者...")
+	if s.logService != nil {
+		s.logService.Info("instance", "设置目录权限和所有者", logs.LogField{Key: "instance_id", Value: instance.ID})
+	} else {
+		log.Printf("设置目录权限和所有者...")
+	}
 
 	if err := os.Chmod(instanceDir, 0755); err != nil {
-		log.Printf("警告: 设置目录权限失败: %v", err)
+		if s.logService != nil {
+			s.logService.Warn("instance", "设置目录权限失败", logs.LogField{Key: "error", Value: err}, logs.LogField{Key: "instance_id", Value: instance.ID})
+		} else {
+			log.Printf("警告: 设置目录权限失败: %v", err)
+		}
 	}
 
 	if err := os.Chown(instanceDir, 1000, 1000); err != nil {
-		log.Printf("警告: 设置目录所有者失败: %v", err)
+		if s.logService != nil {
+			s.logService.Warn("instance", "设置目录所有者失败", logs.LogField{Key: "error", Value: err}, logs.LogField{Key: "instance_id", Value: instance.ID})
+		} else {
+			log.Printf("警告: 设置目录所有者失败: %v", err)
+		}
 	}
 
 	// 5. 创建数据目录
 	dataDir := filepath.Join(instanceDir, "data")
-	log.Printf("创建数据目录: %s", dataDir)
+	if s.logService != nil {
+		s.logService.Info("instance", "创建数据目录", logs.LogField{Key: "instance_id", Value: instance.ID}, logs.LogField{Key: "directory", Value: dataDir})
+	} else {
+		log.Printf("创建数据目录: %s", dataDir)
+	}
 
 	if err := os.MkdirAll(dataDir, 0755); err != nil {
-		log.Printf("创建数据目录失败: %v", err)
+		if s.logService != nil {
+			s.logService.Error("instance", "创建数据目录失败", logs.LogField{Key: "error", Value: err}, logs.LogField{Key: "instance_id", Value: instance.ID}, logs.LogField{Key: "directory", Value: dataDir})
+		} else {
+			log.Printf("创建数据目录失败: %v", err)
+		}
 		return fmt.Errorf("创建数据目录失败: %w", err)
 	}
 
 	// 6. 设置数据目录权限和所有者
 	if err := os.Chmod(dataDir, 0755); err != nil {
-		log.Printf("警告: 设置数据目录权限失败: %v", err)
+		if s.logService != nil {
+			s.logService.Warn("instance", "设置数据目录权限失败", logs.LogField{Key: "error", Value: err}, logs.LogField{Key: "instance_id", Value: instance.ID})
+		} else {
+			log.Printf("警告: 设置数据目录权限失败: %v", err)
+		}
 	}
 
 	if err := os.Chown(dataDir, 1000, 1000); err != nil {
-		log.Printf("警告: 设置数据目录所有者失败: %v", err)
+		if s.logService != nil {
+			s.logService.Warn("instance", "设置数据目录所有者失败", logs.LogField{Key: "error", Value: err}, logs.LogField{Key: "instance_id", Value: instance.ID})
+		} else {
+			log.Printf("警告: 设置数据目录所有者失败: %v", err)
+		}
 	}
 
-	log.Printf("实例 %s 运行环境准备完成", instance.ID)
+	if s.logService != nil {
+		s.logService.Info("instance", "实例运行环境准备完成", logs.LogField{Key: "instance_id", Value: instance.ID})
+	} else {
+		log.Printf("实例 %s 运行环境准备完成", instance.ID)
+	}
 	return nil
 }
 
@@ -622,12 +738,20 @@ log_client_cmds=%t
 
 	// 设置文件权限
 	if err := os.Chmod(configPath, 0600); err != nil {
-		log.Printf("警告: 设置配置文件权限失败: %v", err)
+		if s.logService != nil {
+			s.logService.Warn("instance", "设置配置文件权限失败", logs.LogField{Key: "error", Value: err}, logs.LogField{Key: "config_path", Value: configPath})
+		} else {
+			log.Printf("警告: 设置配置文件权限失败: %v", err)
+		}
 	}
 
 	// 设置文件所有者
 	if err := os.Chown(configPath, 1000, 1000); err != nil {
-		log.Printf("警告: 设置配置文件所有者失败: %v", err)
+		if s.logService != nil {
+			s.logService.Warn("instance", "设置配置文件所有者失败", logs.LogField{Key: "error", Value: err}, logs.LogField{Key: "config_path", Value: configPath})
+		} else {
+			log.Printf("警告: 设置配置文件所有者失败: %v", err)
+		}
 	}
 
 	return nil
@@ -691,12 +815,20 @@ func (s *Service) buildStartCommand(instance *Instance) (*exec.Cmd, error) {
 
 // monitorInstance 监控实例运行状态
 func (s *Service) monitorInstance(instance *Instance, cmd *exec.Cmd) {
-	log.Printf("开始监控实例 %s (PID: %d)", instance.ID, cmd.Process.Pid)
+	if s.logService != nil {
+		s.logService.Info("instance", "开始监控实例", logs.LogField{Key: "instance_id", Value: instance.ID}, logs.LogField{Key: "pid", Value: cmd.Process.Pid})
+	} else {
+		log.Printf("开始监控实例 %s (PID: %d)", instance.ID, cmd.Process.Pid)
+	}
 
 	// 1. 等待进程退出
 	processState, err := cmd.Process.Wait()
 	if err != nil {
-		log.Printf("等待进程 %d 退出时出错: %v", cmd.Process.Pid, err)
+		if s.logService != nil {
+			s.logService.Error("instance", "等待进程退出时出错", logs.LogField{Key: "error", Value: err}, logs.LogField{Key: "pid", Value: cmd.Process.Pid})
+		} else {
+			log.Printf("等待进程 %d 退出时出错: %v", cmd.Process.Pid, err)
+		}
 	}
 
 	// 2. 更新实例状态并处理自动重启
@@ -710,7 +842,11 @@ func (s *Service) monitorInstance(instance *Instance, cmd *exec.Cmd) {
 
 		// 如果实例已经被手动停止，则不更新状态
 		if currentInstance.Status == StatusStopped {
-			log.Printf("实例 %s 已被手动停止，不更新状态", instance.ID)
+			if s.logService != nil {
+				s.logService.Info("instance", "实例已被手动停止，不更新状态", logs.LogField{Key: "instance_id", Value: instance.ID})
+			} else {
+				log.Printf("实例 %s 已被手动停止，不更新状态", instance.ID)
+			}
 			autoRestart = false
 			return nil
 		}
@@ -748,7 +884,11 @@ func (s *Service) monitorInstance(instance *Instance, cmd *exec.Cmd) {
 	})
 
 	if err != nil {
-		log.Printf("更新实例 %s 状态失败: %v", instance.ID, err)
+		if s.logService != nil {
+			s.logService.Error("instance", "更新实例状态失败", logs.LogField{Key: "error", Value: err}, logs.LogField{Key: "instance_id", Value: instance.ID})
+		} else {
+			log.Printf("更新实例 %s 状态失败: %v", instance.ID, err)
+		}
 	}
 
 	// 3. 处理自动重启
@@ -758,7 +898,11 @@ func (s *Service) monitorInstance(instance *Instance, cmd *exec.Cmd) {
 
 		// 检查是否可以重启
 		if canRestart, delay := s.restartManager.CanRestart(instance.ID, config); canRestart {
-			log.Printf("准备自动重启实例 %s (延迟: %v)", instance.ID, delay)
+			if s.logService != nil {
+				s.logService.Info("instance", "准备自动重启实例", logs.LogField{Key: "instance_id", Value: instance.ID}, logs.LogField{Key: "delay", Value: delay})
+			} else {
+				log.Printf("准备自动重启实例 %s (延迟: %v)", instance.ID, delay)
+			}
 
 			// 延迟重启
 			time.Sleep(delay)
@@ -766,7 +910,11 @@ func (s *Service) monitorInstance(instance *Instance, cmd *exec.Cmd) {
 			// 获取最新状态的实例
 			var currentInstance Instance
 			if err := s.db.First(&currentInstance, "id = ?", instance.ID).Error; err != nil {
-				log.Printf("获取实例 %s 状态失败: %v", instance.ID, err)
+				if s.logService != nil {
+					s.logService.Error("instance", "获取实例状态失败", logs.LogField{Key: "error", Value: err}, logs.LogField{Key: "instance_id", Value: instance.ID})
+				} else {
+					log.Printf("获取实例 %s 状态失败: %v", instance.ID, err)
+				}
 				return
 			}
 
@@ -774,12 +922,20 @@ func (s *Service) monitorInstance(instance *Instance, cmd *exec.Cmd) {
 			if currentInstance.Status == StatusStopped || currentInstance.Status == StatusError {
 				// 更新状态为启动中
 				if err := currentInstance.SetStatus(StatusStarting); err != nil {
-					log.Printf("更新实例 %s 状态为 starting 失败: %v", instance.ID, err)
+					if s.logService != nil {
+						s.logService.Error("instance", "更新实例状态为starting失败", logs.LogField{Key: "error", Value: err}, logs.LogField{Key: "instance_id", Value: instance.ID})
+					} else {
+						log.Printf("更新实例 %s 状态为 starting 失败: %v", instance.ID, err)
+					}
 					return
 				}
 
 				if err := s.db.Save(&currentInstance).Error; err != nil {
-					log.Printf("保存实例 %s 状态失败: %v", instance.ID, err)
+					if s.logService != nil {
+						s.logService.Error("instance", "保存实例状态失败", logs.LogField{Key: "error", Value: err}, logs.LogField{Key: "instance_id", Value: instance.ID})
+					} else {
+						log.Printf("保存实例 %s 状态失败: %v", instance.ID, err)
+					}
 					return
 				}
 
@@ -788,7 +944,11 @@ func (s *Service) monitorInstance(instance *Instance, cmd *exec.Cmd) {
 
 				// 启动实例
 				if err := s.startInstance(&currentInstance); err != nil {
-					log.Printf("自动重启实例 %s 失败: %v", instance.ID, err)
+					if s.logService != nil {
+						s.logService.Error("instance", "自动重启实例失败", logs.LogField{Key: "error", Value: err}, logs.LogField{Key: "instance_id", Value: instance.ID})
+					} else {
+						log.Printf("自动重启实例 %s 失败: %v", instance.ID, err)
+					}
 					_ = currentInstance.AddLog(s.db, "error",
 						fmt.Sprintf("自动重启失败: %v", err))
 				} else {
@@ -796,9 +956,17 @@ func (s *Service) monitorInstance(instance *Instance, cmd *exec.Cmd) {
 				}
 			}
 		} else if delay > 0 {
-			log.Printf("实例 %s 的重启被限流，将在 %v 后重试", instance.ID, delay)
+			if s.logService != nil {
+				s.logService.Warn("instance", "实例重启被限流", logs.LogField{Key: "instance_id", Value: instance.ID}, logs.LogField{Key: "retry_delay", Value: delay})
+			} else {
+				log.Printf("实例 %s 的重启被限流，将在 %v 后重试", instance.ID, delay)
+			}
 		} else {
-			log.Printf("实例 %s 已达到最大重启次数，停止自动重启", instance.ID)
+			if s.logService != nil {
+				s.logService.Error("instance", "实例已达到最大重启次数，停止自动重启", logs.LogField{Key: "instance_id", Value: instance.ID})
+			} else {
+				log.Printf("实例 %s 已达到最大重启次数，停止自动重启", instance.ID)
+			}
 			_ = instance.AddLog(s.db, "error",
 				"实例已达到最大自动重启次数，请检查问题后手动重启")
 		}
@@ -807,7 +975,11 @@ func (s *Service) monitorInstance(instance *Instance, cmd *exec.Cmd) {
 	// 4. 从健康监控中移除实例
 	s.healthMonitor.RemoveInstance(instance.ID)
 
-	log.Printf("实例 %s 监控结束", instance.ID)
+	if s.logService != nil {
+		s.logService.Info("instance", "实例监控结束", logs.LogField{Key: "instance_id", Value: instance.ID})
+	} else {
+		log.Printf("实例 %s 监控结束", instance.ID)
+	}
 }
 
 // buildStopCommand 构建停止命令
@@ -832,32 +1004,56 @@ func (s *Service) buildStopCommand(instance *Instance) (*exec.Cmd, error) {
 
 // restartInstanceProcess 异步重启实例的实际实现
 func (s *Service) restartInstanceProcess(instance *Instance) {
-	log.Printf("开始重启实例 %s", instance.ID)
+	if s.logService != nil {
+		s.logService.Info("instance", "开始重启实例", logs.LogField{Key: "instance_id", Value: instance.ID})
+	} else {
+		log.Printf("开始重启实例 %s", instance.ID)
+	}
 
 	// 1. 停止实例
 	if err := s.stopInstance(instance); err != nil {
-		log.Printf("停止实例 %s 失败: %v", instance.ID, err)
+		if s.logService != nil {
+			s.logService.Error("instance", "停止实例失败", logs.LogField{Key: "error", Value: err}, logs.LogField{Key: "instance_id", Value: instance.ID})
+		} else {
+			log.Printf("停止实例 %s 失败: %v", instance.ID, err)
+		}
 		return
 	}
 
 	// 2. 准备环境
 	if err := s.prepareInstanceEnvironment(instance); err != nil {
-		log.Printf("准备实例 %s 环境失败: %v", instance.ID, err)
+		if s.logService != nil {
+			s.logService.Error("instance", "准备实例环境失败", logs.LogField{Key: "error", Value: err}, logs.LogField{Key: "instance_id", Value: instance.ID})
+		} else {
+			log.Printf("准备实例 %s 环境失败: %v", instance.ID, err)
+		}
 		return
 	}
 
 	// 3. 启动实例
 	if err := s.startInstance(instance); err != nil {
-		log.Printf("启动实例 %s 失败: %v", instance.ID, err)
+		if s.logService != nil {
+			s.logService.Error("instance", "启动实例失败", logs.LogField{Key: "error", Value: err}, logs.LogField{Key: "instance_id", Value: instance.ID})
+		} else {
+			log.Printf("启动实例 %s 失败: %v", instance.ID, err)
+		}
 		return
 	}
 
-	log.Printf("实例 %s 重启完成", instance.ID)
+	if s.logService != nil {
+		s.logService.Info("instance", "实例重启完成", logs.LogField{Key: "instance_id", Value: instance.ID})
+	} else {
+		log.Printf("实例 %s 重启完成", instance.ID)
+	}
 }
 
 // stopInstance 停止实例
 func (s *Service) stopInstance(instance *Instance) error {
-	log.Printf("正在停止实例 %s", instance.ID)
+	if s.logService != nil {
+		s.logService.Info("instance", "正在停止实例", logs.LogField{Key: "instance_id", Value: instance.ID})
+	} else {
+		log.Printf("正在停止实例 %s", instance.ID)
+	}
 
 	// 1. 构建停止命令
 	cmd, err := s.buildStopCommand(instance)
@@ -899,7 +1095,11 @@ func (s *Service) stopInstance(instance *Instance) error {
 
 // startInstance 启动实例
 func (s *Service) startInstance(instance *Instance) error {
-	log.Printf("正在启动实例 %s", instance.ID)
+	if s.logService != nil {
+		s.logService.Info("instance", "正在启动实例", logs.LogField{Key: "instance_id", Value: instance.ID})
+	} else {
+		log.Printf("正在启动实例 %s", instance.ID)
+	}
 
 	// 1. 构建启动命令
 	cmd, err := s.buildStartCommand(instance)
@@ -929,14 +1129,22 @@ func (s *Service) startInstance(instance *Instance) error {
 	})
 
 	if err != nil {
-		log.Printf("更新实例 %s 状态失败: %v", instance.ID, err)
+		if s.logService != nil {
+			s.logService.Error("instance", "更新实例状态失败", logs.LogField{Key: "error", Value: err.Error()}, logs.LogField{Key: "instance_id", Value: instance.ID})
+		} else {
+			log.Printf("更新实例 %s 状态失败: %v", instance.ID, err)
+		}
 		return err
 	}
 
 	// 4. 启动监控协程
 	go s.monitorInstance(instance, cmd)
 
-	log.Printf("实例 %s 已成功启动 (PID: %d)", instance.ID, cmd.Process.Pid)
+	if s.logService != nil {
+		s.logService.Info("instance", "实例已成功启动", logs.LogField{Key: "instance_id", Value: instance.ID}, logs.LogField{Key: "pid", Value: cmd.Process.Pid})
+	} else {
+		log.Printf("实例 %s 已成功启动 (PID: %d)", instance.ID, cmd.Process.Pid)
+	}
 	return nil
 }
 

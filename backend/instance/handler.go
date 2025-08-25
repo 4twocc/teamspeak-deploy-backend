@@ -30,7 +30,7 @@ type Handler struct {
 // NewHandler 创建新的实例处理器
 func NewHandler() *Handler {
 	return &Handler{
-		service: NewService(database.DB, NewAlertManager(database.DB)),
+		service: NewService(database.DB, NewAlertManager(database.DB, nil)),
 	}
 }
 
@@ -499,6 +499,7 @@ func (h *Handler) getInstanceLogs(w http.ResponseWriter, r *http.Request) {
 	// 获取实例日志
 	logs, err := h.service.GetInstanceLogs(r.Context(), id, limit)
 	if err != nil {
+		// 这里使用标准log，因为handler层通常不直接持有logService
 		log.Printf("Failed to get logs for instance %s: %v", id, err)
 		status := http.StatusInternalServerError
 		if errors.Is(err, ErrInstanceNotFound) {

@@ -16,6 +16,7 @@ import (
 	"teamspeak-one-click-deploy/database"
 	"teamspeak-one-click-deploy/deploy"
 	"teamspeak-one-click-deploy/instance"
+	"teamspeak-one-click-deploy/logs"
 	"teamspeak-one-click-deploy/router"
 	"teamspeak-one-click-deploy/utils"
 
@@ -23,6 +24,14 @@ import (
 	"golang.org/x/time/rate"
 	"gorm.io/gorm"
 )
+
+// 全局日志服务
+var logService logs.LogService
+
+// SetLogService 设置日志服务
+func SetLogService(ls logs.LogService) {
+	logService = ls
+}
 
 // configWrapper 包装配置以适配认证模块的接口
 type configWrapper struct {
@@ -95,6 +104,11 @@ func InitDatabase(config *config.Config) error {
 				return fmt.Errorf("failed to migrate instance_logs table: %v", err)
 			}
 
+			// 系统日志表
+			if err := tx.AutoMigrate(&logs.SystemLog{}); err != nil {
+				return fmt.Errorf("failed to migrate system_logs table: %v", err)
+			}
+
 			return nil
 		})
 
@@ -102,10 +116,18 @@ func InitDatabase(config *config.Config) error {
 			return fmt.Errorf("failed to auto migrate database: %v", err)
 		}
 
-		log.Println("Database migration completed successfully")
+		if logService != nil {
+			logService.Info("server", "Database migration completed successfully")
+		} else {
+			log.Println("Database migration completed successfully")
+		}
 	}
 
-	log.Println("Database connection established successfully")
+	if logService != nil {
+		logService.Info("server", "Database connection established successfully")
+	} else {
+		log.Println("Database connection established successfully")
+	}
 	return nil
 }
 
@@ -115,7 +137,11 @@ func InitDeployment(config *config.Config) error {
 		return fmt.Errorf("failed to initialize deployment module: %v", err)
 	}
 
-	log.Println("Deployment module initialized successfully")
+	if logService != nil {
+		logService.Info("server", "Deployment module initialized successfully")
+	} else {
+		log.Println("Deployment module initialized successfully")
+	}
 	return nil
 }
 
@@ -188,9 +214,17 @@ func StartServer(routerEngine *gin.Engine, config *config.Config) error {
 
 	// Start server in a goroutine
 	go func() {
-		log.Printf("Server starting on port %s in %s mode", port, config.Server.Env)
+		if logService != nil {
+			logService.Info("server", "Server starting", logs.LogField{Key: "port", Value: port}, logs.LogField{Key: "mode", Value: config.Server.Env})
+		} else {
+			log.Printf("Server starting on port %s in %s mode", port, config.Server.Env)
+		}
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("Error starting server: %v", err)
+			if logService != nil {
+				logService.Error("server", "Error starting server", logs.LogField{Key: "error", Value: err.Error()})
+			} else {
+				log.Fatalf("Error starting server: %v", err)
+			}
 		}
 	}()
 
@@ -202,12 +236,24 @@ func StartServer(routerEngine *gin.Engine, config *config.Config) error {
 	defer cancel()
 
 	// Shutdown the server
-	log.Println("Shutting down server...")
+	if logService != nil {
+		logService.Info("server", "Shutting down server...")
+	} else {
+		log.Println("Shutting down server...")
+	}
 	if err := server.Shutdown(ctx); err != nil {
-		log.Printf("Server shutdown error: %v", err)
+		if logService != nil {
+			logService.Error("server", "Server shutdown error", logs.LogField{Key: "error", Value: err.Error()})
+		} else {
+			log.Printf("Server shutdown error: %v", err)
+		}
 		return err
 	}
 
-	log.Println("Server exited properly")
+	if logService != nil {
+		logService.Info("server", "Server exited properly")
+	} else {
+		log.Println("Server exited properly")
+	}
 	return nil
 }

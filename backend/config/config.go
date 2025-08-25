@@ -12,6 +12,7 @@ import (
 type Config struct {
 	Server     ServerConfig     `yaml:"server"`
 	Database   DatabaseConfig   `yaml:"database"`
+	Logging    LoggingConfig    `yaml:"logging"`
 	Monitoring MonitoringConfig `yaml:"monitoring"`
 	Teamspeak  TeamspeakConfig  `yaml:"teamspeak"`
 	Security   SecurityConfig   `yaml:"security"`
@@ -64,6 +65,21 @@ type DatabaseConfig struct {
 	MaxOpenConns    int           `yaml:"max_open_conns"`
 	ConnMaxLifetime time.Duration `yaml:"conn_max_lifetime"`
 	AutoMigrate     bool          `yaml:"auto_migrate"`
+}
+
+// LoggingConfig 日志配置
+type LoggingConfig struct {
+	Level          string        `yaml:"level"`           // 日志级别
+	OutputFile     string        `yaml:"output_file"`     // 日志文件路径
+	MaxSize        int           `yaml:"max_size"`        // 单个日志文件最大大小(MB)
+	MaxBackups     int           `yaml:"max_backups"`     // 保留的日志文件数量
+	MaxAge         int           `yaml:"max_age"`         // 日志文件保留天数
+	Compress       bool          `yaml:"compress"`        // 是否压缩旧日志文件
+	RetentionDays  int           `yaml:"retention_days"`  // 数据库日志保留天数
+	BatchSize      int           `yaml:"batch_size"`      // 批量写入数据库的日志条数
+	FlushInterval  time.Duration `yaml:"flush_interval"`  // 批量写入的时间间隔
+	EnableConsole  bool          `yaml:"enable_console"`  // 是否同时输出到控制台
+	EnableDatabase bool          `yaml:"enable_database"` // 是否写入数据库
 }
 
 // MonitoringConfig 监控配置

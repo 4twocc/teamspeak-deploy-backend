@@ -148,6 +148,7 @@ func NewLogging(enabled bool) func(http.Handler) http.Handler {
 			next.ServeHTTP(rw, r)
 			dur := time.Since(start)
 			rid := GetRequestID(r.Context())
+			// 继续使用标准log，因为这是HTTP中间件层
 			log.Printf("%s %s %d %s rid=%s", r.Method, r.URL.Path, rw.status, dur, rid)
 		})
 	}
@@ -158,6 +159,7 @@ func WithRecover(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			if rec := recover(); rec != nil {
+				// 继续使用标准log，因为这是HTTP中间件层的panic恢复
 				log.Printf("panic recovered: %v", rec)
 				Fail(w, http.StatusInternalServerError, ErrInternalServer, ErrorMessage(ErrInternalServer))
 			}
@@ -265,6 +267,7 @@ func LoggingMiddlewareWithGin(enabled bool) gin.HandlerFunc {
 			}
 		}
 
+		// 继续使用标准log，因为这是Gin中间件层
 		log.Printf("%s %s %d %s rid=%s", c.Request.Method, c.Request.URL.Path, status, dur, rid)
 	}
 }

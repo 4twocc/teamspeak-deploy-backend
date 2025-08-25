@@ -7,6 +7,8 @@ import (
 	"log"
 	"time"
 
+	"teamspeak-one-click-deploy/logs"
+
 	"github.com/go-redis/redis/v8"
 )
 
@@ -20,7 +22,11 @@ func InitRedisCache() error {
 
 	// 如果配置未加载或未启用Redis，则不初始化
 	if cfg == nil || !cfg.Monitoring.Redis.Enabled {
-		log.Println("Redis cache is disabled")
+		if logService != nil {
+			logService.Info("monitor", "Redis缓存已禁用")
+		} else {
+			log.Println("Redis cache is disabled")
+		}
 		return nil
 	}
 
@@ -41,7 +47,11 @@ func InitRedisCache() error {
 		return fmt.Errorf("failed to connect to Redis: %w", err)
 	}
 
-	log.Println("Redis cache initialized successfully")
+	if logService != nil {
+		logService.Info("monitor", "Redis缓存初始化成功")
+	} else {
+		log.Println("Redis cache initialized successfully")
+	}
 	return nil
 }
 
@@ -49,7 +59,11 @@ func InitRedisCache() error {
 func CloseRedisCache() {
 	if redisClient != nil {
 		if err := redisClient.Close(); err != nil {
-			log.Printf("Error closing Redis client: %v", err)
+			if logService != nil {
+				logService.Error("monitor", "关闭Redis客户端失败", logs.LogField{Key: "error", Value: err.Error()})
+			} else {
+				log.Printf("Error closing Redis client: %v", err)
+			}
 		}
 		redisClient = nil
 	}

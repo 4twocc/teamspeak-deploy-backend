@@ -172,15 +172,25 @@ func (c *WebhookAlertChannel) Send(alert *Alert) error {
 
 // AlertManager 告警管理器
 type AlertManager struct {
-	db       *gorm.DB
-	channels map[string]AlertChannel
+	db         *gorm.DB
+	channels   map[string]AlertChannel
+	logService interface {
+		Error(msg string, fields ...any)
+		Warn(msg string, fields ...any)
+		Info(msg string, fields ...any)
+	}
 }
 
 // NewAlertManager 创建告警管理器
-func NewAlertManager(db *gorm.DB) *AlertManager {
+func NewAlertManager(db *gorm.DB, logService interface {
+	Error(msg string, fields ...any)
+	Warn(msg string, fields ...any)
+	Info(msg string, fields ...any)
+}) *AlertManager {
 	return &AlertManager{
-		db:       db,
-		channels: make(map[string]AlertChannel),
+		db:         db,
+		channels:   make(map[string]AlertChannel),
+		logService: logService,
 	}
 }
 
@@ -201,8 +211,8 @@ func (m *AlertManager) Trigger(instanceID string, level AlertLevel, alertType Al
 				InstanceID: instanceID,
 				Enabled:    true,
 			}
-			if err := m.db.Create(&config).Error; err != nil {
-				return fmt.Errorf("failed to create default alert config: %w", err)
+			if dbCreateErr := m.db.Create(&config).Error; dbCreateErr != nil {
+				return fmt.Errorf("failed to create default alert config: %w", dbCreateErr)
 			}
 		} else {
 			return fmt.Errorf("failed to get alert config: %w", err)
@@ -243,7 +253,11 @@ func (m *AlertManager) Trigger(instanceID string, level AlertLevel, alertType Al
 	// 发送告警通知
 	for name, channel := range m.channels {
 		if err := channel.Send(alert); err != nil {
-			log.Printf("Failed to send alert via channel %s: %v", name, err)
+			if m.logService != nil {
+				m.logService.Error("Failed to send alert via channel", "channel", name, "error", err)
+			} else {
+				log.Printf("Failed to send alert via channel %s: %v", name, err)
+			}
 			continue
 		}
 	}
@@ -269,7 +283,11 @@ func (m *AlertManager) Resolve(instanceID, alertType, resolvedBy string) error {
 		alerts[i].AcknowledgedAt = &now
 
 		if err := m.db.Save(&alerts[i]).Error; err != nil {
-			log.Printf("Failed to resolve alert %s: %v", alerts[i].ID, err)
+			if m.logService != nil {
+				m.logService.Error("Failed to resolve alert", "alert_id", alerts[i].ID, "error", err)
+			} else {
+				log.Printf("Failed to resolve alert %s: %v", alerts[i].ID, err)
+			}
 		}
 	}
 

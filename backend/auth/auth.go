@@ -13,6 +13,7 @@ import (
 	"teamspeak-one-click-deploy/api"
 	"teamspeak-one-click-deploy/config"
 	"teamspeak-one-click-deploy/database"
+	"teamspeak-one-click-deploy/logs"
 	"teamspeak-one-click-deploy/user"
 	"teamspeak-one-click-deploy/utils"
 
@@ -21,6 +22,12 @@ import (
 )
 
 var configInstance *config.Config
+var logService logs.LogService
+
+// SetLogService 设置日志服务
+func SetLogService(ls logs.LogService) {
+	logService = ls
+}
 
 // Init 初始化认证模块
 func Init(cfg *config.Config) {
@@ -51,7 +58,11 @@ func registerHandler(c *gin.Context) {
 		utils.FailGin(c, http.StatusConflict, utils.ErrUserAlreadyExists, utils.ErrorMessage(utils.ErrUserAlreadyExists))
 		return
 	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
-		log.Printf("Error checking username: %v", err)
+		if logService != nil {
+			logService.Error("auth", "Error checking username", logs.LogField{Key: "error", Value: err})
+		} else {
+			log.Printf("Error checking username: %v", err)
+		}
 		utils.FailGin(c, http.StatusInternalServerError, utils.ErrInternalServer, utils.ErrorMessage(utils.ErrInternalServer))
 		return
 	}
@@ -62,7 +73,11 @@ func registerHandler(c *gin.Context) {
 			utils.FailGin(c, http.StatusConflict, utils.ErrEmailExists, utils.ErrorMessage(utils.ErrEmailExists))
 			return
 		} else if !errors.Is(err, gorm.ErrRecordNotFound) {
-			log.Printf("Error checking email: %v", err)
+			if logService != nil {
+				logService.Error("auth", "Error checking email", logs.LogField{Key: "error", Value: err})
+			} else {
+				log.Printf("Error checking email: %v", err)
+			}
 			utils.FailGin(c, http.StatusInternalServerError, utils.ErrInternalServer, utils.ErrorMessage(utils.ErrInternalServer))
 			return
 		}
@@ -79,7 +94,11 @@ func registerHandler(c *gin.Context) {
 
 	// 设置密码（加密）
 	if err := newUser.SetPassword(req.Password); err != nil {
-		log.Printf("Error hashing password: %v", err)
+		if logService != nil {
+			logService.Error("auth", "Error hashing password", logs.LogField{Key: "error", Value: err})
+		} else {
+			log.Printf("Error hashing password: %v", err)
+		}
 		utils.FailGin(c, http.StatusInternalServerError, utils.ErrInternalServer, utils.ErrorMessage(utils.ErrInternalServer))
 		return
 	}
@@ -91,7 +110,11 @@ func registerHandler(c *gin.Context) {
 
 	// 保存到数据库
 	if err := database.DB.Create(&newUser).Error; err != nil {
-		log.Printf("Error creating user: %v", err)
+		if logService != nil {
+			logService.Error("auth", "Error creating user", logs.LogField{Key: "error", Value: err})
+		} else {
+			log.Printf("Error creating user: %v", err)
+		}
 		// 检查是否是用户名重复错误
 		if strings.Contains(err.Error(), "UNIQUE constraint failed: user.username") {
 			utils.FailGin(c, http.StatusConflict, utils.ErrUserAlreadyExists, utils.ErrorMessage(utils.ErrUserAlreadyExists))
@@ -120,7 +143,11 @@ func loginHandler(c *gin.Context) {
 			utils.FailGin(c, http.StatusUnauthorized, utils.ErrInvalidCredentials, utils.ErrorMessage(utils.ErrInvalidCredentials))
 			return
 		}
-		log.Printf("Error querying user: %v", err)
+		if logService != nil {
+			logService.Error("auth", "Error querying user", logs.LogField{Key: "error", Value: err})
+		} else {
+			log.Printf("Error querying user: %v", err)
+		}
 		utils.FailGin(c, http.StatusInternalServerError, utils.ErrInternalServer, utils.ErrorMessage(utils.ErrInternalServer))
 		return
 	}
@@ -141,14 +168,22 @@ func loginHandler(c *gin.Context) {
 	now := time.Now()
 	user.LastLogin = &now
 	if err := database.DB.Save(&user).Error; err != nil {
-		log.Printf("Error updating last login time: %v", err)
+		if logService != nil {
+			logService.Error("auth", "Error updating last login time", logs.LogField{Key: "error", Value: err})
+		} else {
+			log.Printf("Error updating last login time: %v", err)
+		}
 		// 不返回错误，继续生成令牌
 	}
 
 	// 生成 JWT 令牌
 	token, expiresAt, err := generateToken(&user)
 	if err != nil {
-		log.Printf("Error generating token: %v", err)
+		if logService != nil {
+			logService.Error("auth", "Error generating token", logs.LogField{Key: "error", Value: err})
+		} else {
+			log.Printf("Error generating token: %v", err)
+		}
 		utils.FailGin(c, http.StatusInternalServerError, utils.ErrInternalServer, utils.ErrorMessage(utils.ErrInternalServer))
 		return
 	}
@@ -212,7 +247,11 @@ func infoHandler(c *gin.Context) {
 			utils.FailGin(c, http.StatusNotFound, utils.ErrUserNotFound, utils.ErrorMessage(utils.ErrUserNotFound))
 			return
 		}
-		log.Printf("Error fetching user: %v", err)
+		if logService != nil {
+			logService.Error("auth", "Error fetching user", logs.LogField{Key: "error", Value: err.Error()})
+		} else {
+			log.Printf("Error fetching user: %v", err)
+		}
 		utils.FailGin(c, http.StatusInternalServerError, utils.ErrInternalServer, utils.ErrorMessage(utils.ErrInternalServer))
 		return
 	}

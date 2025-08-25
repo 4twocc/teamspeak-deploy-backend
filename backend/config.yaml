@@ -42,6 +42,20 @@ database:
   conn_max_lifetime: 1h
   auto_migrate: true
 
+# 日志配置
+logging:
+  level: "info"                     # 日志级别: debug, info, warn, error
+  output_file: "logs/system.log"    # 日志文件路径
+  max_size: 100                     # 单个日志文件最大大小(MB)
+  max_backups: 5                    # 保留的日志文件数量
+  max_age: 30                       # 日志文件保留天数
+  compress: true                    # 是否压缩旧日志文件
+  retention_days: 90                # 数据库日志保留天数
+  batch_size: 100                   # 批量写入数据库的日志条数
+  flush_interval: 30s               # 批量写入的时间间隔
+  enable_console: true              # 是否同时输出到控制台
+  enable_database: true             # 是否写入数据库
+
 monitoring:
   addr: ":9090"
   collect_interval: 1m

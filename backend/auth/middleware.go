@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strings"
 
+	"teamspeak-one-click-deploy/logs"
 	"teamspeak-one-click-deploy/utils"
 
 	"github.com/gin-gonic/gin"
@@ -84,7 +85,11 @@ func AuthMiddleware(next http.Handler) http.Handler {
 		// 解析令牌
 		_, err := ParseToken(authHeader)
 		if err != nil {
-			log.Printf("Error parsing token: %v", err)
+			if logService != nil {
+				logService.Error("auth", "Error parsing token", logs.LogField{Key: "error", Value: err.Error()})
+			} else {
+				log.Printf("Error parsing token: %v", err)
+			}
 			utils.Fail(w, http.StatusUnauthorized, utils.ErrUnauthorized, "Invalid or expired token")
 			return
 		}
@@ -126,7 +131,11 @@ func AuthMiddlewareWithGin() gin.HandlerFunc {
 		// 解析令牌
 		claims, err := ParseToken(tokenString)
 		if err != nil {
-			log.Printf("Error parsing token: %v", err)
+			if logService != nil {
+				logService.Error("auth", "Error parsing token", logs.LogField{Key: "error", Value: err.Error()})
+			} else {
+				log.Printf("Error parsing token: %v", err)
+			}
 			utils.FailGin(c, http.StatusUnauthorized, utils.ErrUnauthorized, "Invalid or expired token")
 			c.Abort()
 			return

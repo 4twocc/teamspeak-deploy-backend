@@ -11,6 +11,8 @@ import (
 	"time"
 
 	configPkg "teamspeak-one-click-deploy/config"
+	"teamspeak-one-click-deploy/database"
+	"teamspeak-one-click-deploy/logs"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
@@ -168,6 +170,9 @@ type Collector struct {
 	// 延迟控制
 	collectionDelay time.Duration
 
+	// 日志服务
+	logService logs.LogService
+
 	// 冷却期控制键
 }
 
@@ -263,6 +268,21 @@ func NewCollector(opts ...CollectorOption) *Collector {
 	}
 	if c.minCollectionInterval <= 0 {
 		c.minCollectionInterval = time.Second * 30
+	}
+
+	// 初始化日志服务
+	if cfg != nil && database.DB != nil {
+		if service, err := logs.NewLogService(database.DB, logs.LogConfig{
+			Level:         cfg.Logging.Level,
+			EnableDB:      cfg.Logging.EnableDatabase,
+			RetentionDays: cfg.Logging.RetentionDays,
+			BatchSize:     cfg.Logging.BatchSize,
+			BatchInterval: int(cfg.Logging.FlushInterval.Seconds()),
+			EnableFile:    true,
+			FilePath:      cfg.Logging.OutputFile,
+		}); err == nil {
+			c.logService = service
+		}
 	}
 
 	return c
@@ -481,7 +501,11 @@ func (c *Collector) collectSystemMetricsOnce() {
 	// 缓存到Redis
 	if cfg := GetConfig(); cfg != nil && cfg.Monitoring.Redis.Enabled {
 		if err := cacheSystemMetrics(metrics); err != nil {
-			log.Printf("Failed to cache system metrics: %v", err)
+			if c.logService != nil {
+				c.logService.Error("monitor", "Failed to cache system metrics", logs.LogField{Key: "error", Value: err})
+			} else {
+				log.Printf("Failed to cache system metrics: %v", err)
+			}
 		}
 	}
 
@@ -566,7 +590,14 @@ func (c *Collector) collectBusinessMetricsOnce() {
 	for attempt := 0; err == nil && attempt < maxRetries; attempt++ {
 		if attempt > 0 {
 			backoff := time.Second * time.Duration(attempt*2)
-			log.Printf("Retrying in %v... (attempt %d/%d)", backoff, attempt+1, maxRetries)
+			if c.logService != nil {
+				c.logService.Info("monitor", "Retrying business metrics collection",
+					logs.LogField{Key: "backoff", Value: backoff},
+					logs.LogField{Key: "attempt", Value: attempt + 1},
+					logs.LogField{Key: "maxRetries", Value: maxRetries})
+			} else {
+				log.Printf("Retrying in %v... (attempt %d/%d)", backoff, attempt+1, maxRetries)
+			}
 			time.Sleep(backoff)
 		}
 
@@ -640,7 +671,11 @@ func (c *Collector) collectBusinessMetricsOnce() {
 	// 缓存到Redis
 	if cfg := GetConfig(); cfg != nil && cfg.Monitoring.Redis.Enabled {
 		if err := cacheBusinessMetrics(metrics); err != nil {
-			log.Printf("Failed to cache business metrics: %v", err)
+			if c.logService != nil {
+				c.logService.Error("monitor", "Failed to cache business metrics", logs.LogField{Key: "error", Value: err.Error()})
+			} else {
+				log.Printf("Failed to cache business metrics: %v", err)
+			}
 		}
 	}
 
@@ -648,7 +683,11 @@ func (c *Collector) collectBusinessMetricsOnce() {
 	select {
 	case c.businessMetricsChan <- metrics:
 	default:
-		log.Println("Business metrics channel is full, dropping data")
+		if logService != nil {
+			logService.Warn("monitor", "Business metrics channel is full, dropping data")
+		} else {
+			log.Println("Business metrics channel is full, dropping data")
+		}
 	}
 }
 
@@ -662,7 +701,11 @@ func (c *Collector) processAlerts() {
 			return
 		case alert := <-c.alertChan:
 			// 处理告警（例如：记录日志、发送邮件等）
-			log.Printf("ALERT [%s]: %s", alert.Level, alert.Message)
+			if logService != nil {
+				logService.Warn("monitor", "ALERT", logs.LogField{Key: "level", Value: string(alert.Level)}, logs.LogField{Key: "message", Value: alert.Message})
+			} else {
+				log.Printf("ALERT [%s]: %s", alert.Level, alert.Message)
+			}
 
 			// 这里可以添加更多的告警处理逻辑
 			// 例如发送邮件、短信、调用 webhook 等

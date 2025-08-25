@@ -7,6 +7,7 @@ import (
 	"time"
 
 	configPkg "teamspeak-one-click-deploy/config"
+	"teamspeak-one-click-deploy/logs"
 
 	"github.com/multiplay/go-ts3"
 )
@@ -47,7 +48,11 @@ func NewTeamSpeakClient(config configPkg.TeamspeakConfig) (*TeamSpeakClient, err
 func (c *TeamSpeakClient) connect() error {
 	// 构造连接地址
 	addr := fmt.Sprintf("%s:%d", c.config.Host, c.config.QueryPort)
-	log.Printf("Attempting to connect to TeamSpeak server at %s", addr)
+	if logService != nil {
+		logService.Info("monitor", "尝试连接TeamSpeak服务器", logs.LogField{Key: "address", Value: addr})
+	} else {
+		log.Printf("Attempting to connect to TeamSpeak server at %s", addr)
+	}
 
 	// 创建 TeamSpeak 客户端
 	client, err := ts3.NewClient(addr)
@@ -80,12 +85,20 @@ func (c *TeamSpeakClient) connect() error {
 	if c.config.Nickname != "" {
 		cmd := ts3.NewCmd(fmt.Sprintf("clientupdate client_nickname=%s", c.config.Nickname))
 		if _, err := client.ExecCmd(cmd); err != nil {
-			log.Printf("Warning: failed to set nickname: %v", err)
+			if logService != nil {
+				logService.Warn("monitor", "设置昵称失败", logs.LogField{Key: "error", Value: err.Error()})
+			} else {
+				log.Printf("Warning: failed to set nickname: %v", err)
+			}
 		}
 	}
 
 	c.client = client
-	log.Println("Successfully connected to TeamSpeak server")
+	if logService != nil {
+		logService.Info("monitor", "成功连接到TeamSpeak服务器")
+	} else {
+		log.Println("Successfully connected to TeamSpeak server")
+	}
 	return nil
 }
 
@@ -120,7 +133,11 @@ func (c *TeamSpeakClient) ensureConnected() error {
 	for attempt := range maxRetries {
 		if err := c.connect(); err != nil {
 			lastErr = err
-			log.Printf("Reconnect attempt %d failed: %v", attempt+1, err)
+			if logService != nil {
+				logService.Warn("monitor", "重连尝试失败", logs.LogField{Key: "attempt", Value: attempt + 1}, logs.LogField{Key: "error", Value: err.Error()})
+			} else {
+				log.Printf("Reconnect attempt %d failed: %v", attempt+1, err)
+			}
 
 			if attempt < maxRetries-1 { // Don't sleep after the last attempt
 				time.Sleep(backoff)
@@ -134,7 +151,11 @@ func (c *TeamSpeakClient) ensureConnected() error {
 		}
 
 		// Success
-		log.Println("Successfully reconnected to TeamSpeak server")
+		if logService != nil {
+			logService.Info("monitor", "成功重连到TeamSpeak服务器")
+		} else {
+			log.Println("Successfully reconnected to TeamSpeak server")
+		}
 		return nil
 	}
 

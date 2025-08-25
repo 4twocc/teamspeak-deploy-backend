@@ -177,6 +177,21 @@ func MapToQueryString(params map[string]string) string {
 	return query[:len(query)-1] // 移除最后一个 &
 }
 
+// LogServiceAdapter 日志服务适配器接口
+type LogServiceAdapter interface {
+	Info(module, message string, fields ...interface{})
+	Warn(module, message string, fields ...interface{})
+	Error(module, message string, fields ...interface{})
+}
+
+// logService 全局日志服务实例
+var logService LogServiceAdapter
+
+// SetLogService 设置日志服务
+func SetLogService(service LogServiceAdapter) {
+	logService = service
+}
+
 // discoverAndLoadDotEnv 搜索并加载项目根目录下的 .env 文件。
 // 优先级：.env, .env.local, .env.docker, 然后按字典顺序加载所有 .env.* 文件（排除 .env.example）。
 func DiscoverAndLoadDotEnv() error {
@@ -222,7 +237,11 @@ func DiscoverAndLoadDotEnv() error {
 		if err := godotenv.Overload(f); err != nil {
 			return err
 		}
-		log.Printf("Loaded env file: %s", f)
+		if logService != nil {
+			logService.Info("utils", "Loaded env file", "file", f)
+		} else {
+			log.Printf("Loaded env file: %s", f)
+		}
 	}
 
 	return nil

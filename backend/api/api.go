@@ -90,6 +90,15 @@ const (
 	MonitorHistoryPath = MonitorBasePath + "/history"
 	// Redis健康检查路径
 	RedisHealthPath = MonitorBasePath + "/redis/health"
+
+	// 日志管理路径
+	LogsBasePath = APIBasePath + "/logs"
+	// 日志查询路径
+	LogsQueryPath = LogsBasePath
+	// 日志统计路径
+	LogsStatsPath = LogsBasePath + "/stats"
+	// 日志清理路径
+	LogsCleanupPath = LogsBasePath + "/cleanup"
 )
 
 // RegisterRoutes registers API routes

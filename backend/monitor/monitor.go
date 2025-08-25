@@ -12,6 +12,7 @@ import (
 	"time"
 
 	configPkg "teamspeak-one-click-deploy/config"
+	"teamspeak-one-click-deploy/logs"
 	"teamspeak-one-click-deploy/utils"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -33,6 +34,7 @@ func RegisterRoutes(mux *http.ServeMux) {
 var (
 	collector     *Collector
 	collectorOnce sync.Once
+	logService    logs.LogService
 
 	// Prometheus 指标
 	promSystemCPU = promauto.NewGauge(prometheus.GaugeOpts{
@@ -65,14 +67,38 @@ var (
 	})
 )
 
+// SetLogService 设置日志服务
+func SetLogService(ls logs.LogService) {
+	logService = ls
+}
+
 // Initialize 初始化监控模块
 func Initialize(cfg *configPkg.Config) error {
+	// 初始化日志服务
+	if cfg != nil {
+		if ls, err := logs.NewLogService(nil, logs.LogConfig{
+			Level:         cfg.Logging.Level,
+			EnableDB:      cfg.Logging.EnableDatabase,
+			RetentionDays: cfg.Logging.RetentionDays,
+			BatchSize:     cfg.Logging.BatchSize,
+			BatchInterval: int(cfg.Logging.FlushInterval.Seconds()),
+			EnableFile:    true,
+			FilePath:      cfg.Logging.OutputFile,
+		}); err == nil {
+			logService = ls
+		}
+	}
+
 	// 更新监控配置
 	UpdateConfig(cfg)
 
 	// 初始化Redis缓存
 	if err := InitRedisCache(); err != nil {
-		log.Printf("Warning: failed to initialize Redis cache: %v", err)
+		if logService != nil {
+			logService.Warn("monitor", "Failed to initialize Redis cache", logs.LogField{Key: "error", Value: err.Error()})
+		} else {
+			log.Printf("Warning: failed to initialize Redis cache: %v", err)
+		}
 	}
 
 	// 创建指标收集器
@@ -92,7 +118,11 @@ func Initialize(cfg *configPkg.Config) error {
 	// 启动处理协程
 	go handleMetrics()
 
-	log.Println("Monitoring module initialized successfully")
+	if logService != nil {
+		logService.Info("monitor", "监控模块初始化成功")
+	} else {
+		log.Println("Monitoring module initialized successfully")
+	}
 	return nil
 }
 
@@ -189,7 +219,11 @@ func handleMetrics() {
 
 				// 记录日志
 				if metrics.Alert != "" {
-					log.Printf("SYSTEM ALERT: %s", metrics.Alert)
+					if logService != nil {
+						logService.Warn("monitor", "SYSTEM ALERT", logs.LogField{Key: "alert", Value: metrics.Alert})
+					} else {
+						log.Printf("SYSTEM ALERT: %s", metrics.Alert)
+					}
 				}
 			}
 
@@ -197,7 +231,11 @@ func handleMetrics() {
 			if metrics != nil {
 				// 记录日志
 				if metrics.Alert != "" {
-					log.Printf("BUSINESS ALERT: %s", metrics.Alert)
+					if logService != nil {
+						logService.Warn("monitor", "BUSINESS ALERT", logs.LogField{Key: "alert", Value: metrics.Alert})
+					} else {
+						log.Printf("BUSINESS ALERT: %s", metrics.Alert)
+					}
 				}
 			}
 
@@ -302,7 +340,11 @@ func businessMonitorHandler(w http.ResponseWriter, r *http.Request) {
 	if cfg := GetConfig(); cfg != nil && cfg.Monitoring.Redis.Enabled {
 		cachedMetrics, err := getCachedBusinessMetrics()
 		if err != nil {
-			log.Printf("Failed to get cached business metrics: %v", err)
+			if logService != nil {
+				logService.Error("monitor", "Failed to get cached business metrics", logs.LogField{Key: "error", Value: err.Error()})
+			} else {
+				log.Printf("Failed to get cached business metrics: %v", err)
+			}
 		} else if cachedMetrics != nil {
 			metrics = cachedMetrics
 		}
@@ -430,19 +472,35 @@ func Run(cfg *configPkg.Config) error {
 
 	// 在 goroutine 中启动服务器
 	go func() {
-		log.Println("Monitoring server starting on :9090")
+		if logService != nil {
+			logService.Info("monitor", "Monitoring server starting on :9090")
+		} else {
+			log.Println("Monitoring server starting on :9090")
+		}
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Printf("Monitoring server error: %v", err)
+			if logService != nil {
+				logService.Error("monitor", "Monitoring server error", logs.LogField{Key: "error", Value: err.Error()})
+			} else {
+				log.Printf("Monitoring server error: %v", err)
+			}
 		}
 	}()
 
 	// 等待中断信号
 	<-sigChan
-	log.Println("Shutting down monitoring server...")
+	if logService != nil {
+		logService.Info("monitor", "Shutting down monitoring server...")
+	} else {
+		log.Println("Shutting down monitoring server...")
+	}
 
 	// 关闭监控模块
 	if err := Close(); err != nil {
-		log.Printf("Error closing monitoring module: %v", err)
+		if logService != nil {
+			logService.Error("monitor", "Error closing monitoring module", logs.LogField{Key: "error", Value: err.Error()})
+		} else {
+			log.Printf("Error closing monitoring module: %v", err)
+		}
 	}
 
 	// 关闭 HTTP 服务器
@@ -453,6 +511,10 @@ func Run(cfg *configPkg.Config) error {
 		return fmt.Errorf("failed to shutdown monitoring server: %w", err)
 	}
 
-	log.Println("Monitoring server stopped")
+	if logService != nil {
+		logService.Info("monitor", "Monitoring server stopped")
+	} else {
+		log.Println("Monitoring server stopped")
+	}
 	return nil
 }

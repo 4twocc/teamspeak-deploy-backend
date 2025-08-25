@@ -8,20 +8,39 @@ import (
 	"os/exec"
 	"strings"
 	"time"
+
+	"teamspeak-one-click-deploy/logs"
 )
 
 // DeploymentManager 部署管理器
 type DeploymentManager struct {
-	scriptDir string
-	timeout   time.Duration
+	scriptDir  string
+	timeout    time.Duration
+	logService logs.LogService
 }
 
 // NewDeploymentManager 创建新的部署管理器
 func NewDeploymentManager(scriptDir string) *DeploymentManager {
-	return &DeploymentManager{
+	dm := &DeploymentManager{
 		scriptDir: scriptDir,
 		timeout:   10 * time.Minute, // 默认超时时间
 	}
+
+	// 尝试初始化日志服务
+	if ls, err := logs.NewLogService(nil, logs.LogConfig{
+		Level:      "info",
+		EnableFile: true,
+		FilePath:   "logs/deploy.log",
+	}); err == nil {
+		dm.logService = ls
+	}
+
+	return dm
+}
+
+// SetLogService 设置日志服务
+func (dm *DeploymentManager) SetLogService(logService logs.LogService) {
+	dm.logService = logService
 }
 
 // SetTimeout 设置超时时间
@@ -62,8 +81,8 @@ func (dm *DeploymentManager) GetContainerStatus() (map[string]any, error) {
 	}
 
 	return map[string]any{
-		"container_info":   output,
-		"docker_available": dm.IsDockerAvailable(),
+		"container_info":    output,
+		"docker_available":  dm.IsDockerAvailable(),
 		"compose_available": dm.IsDockerComposeAvailable(),
 	}, nil
 }
@@ -71,9 +90,9 @@ func (dm *DeploymentManager) GetContainerStatus() (map[string]any, error) {
 // GetDeploymentStatus 获取部署状态
 func (dm *DeploymentManager) GetDeploymentStatus() (map[string]any, error) {
 	return map[string]any{
-		"docker_available": dm.IsDockerAvailable(),
+		"docker_available":  dm.IsDockerAvailable(),
 		"compose_available": dm.IsDockerComposeAvailable(),
-		"script_dir":       dm.scriptDir,
+		"script_dir":        dm.scriptDir,
 	}, nil
 }
 
@@ -104,8 +123,13 @@ func (dm *DeploymentManager) ExecuteScript(scriptName string) error {
 	}
 
 	// 记录成功执行日志
-	log.Printf("Successfully executed script %s", scriptName)
-	log.Printf("Script output: %s", strings.TrimSpace(string(output)))
+	if dm.logService != nil {
+		dm.logService.Info("deploy", "Successfully executed script", logs.LogField{Key: "script", Value: scriptName})
+		dm.logService.Info("deploy", "Script output", logs.LogField{Key: "output", Value: strings.TrimSpace(string(output))})
+	} else {
+		log.Printf("Successfully executed script %s", scriptName)
+		log.Printf("Script output: %s", strings.TrimSpace(string(output)))
+	}
 
 	return nil
 }
@@ -115,14 +139,14 @@ func (dm *DeploymentManager) Deploy() error {
 	if !dm.IsDockerAvailable() {
 		return fmt.Errorf("docker is not available")
 	}
-	
+
 	if !dm.IsDockerComposeAvailable() {
 		return fmt.Errorf("docker compose is not available")
 	}
 
 	// 构建脚本路径
 	scriptPath := fmt.Sprintf("%s/deploy.sh", dm.scriptDir)
-	
+
 	// 检查脚本文件是否存在
 	if _, err := os.Stat(scriptPath); os.IsNotExist(err) {
 		return fmt.Errorf("script %s not found", scriptPath)
@@ -145,8 +169,13 @@ func (dm *DeploymentManager) Deploy() error {
 	}
 
 	// 记录成功执行日志
-	log.Printf("Successfully executed deploy script")
-	log.Printf("Script output: %s", strings.TrimSpace(string(output)))
+	if dm.logService != nil {
+		dm.logService.Info("deploy", "Successfully executed deploy script")
+		dm.logService.Info("deploy", "Script output", logs.LogField{Key: "output", Value: strings.TrimSpace(string(output))})
+	} else {
+		log.Printf("Successfully executed deploy script")
+		log.Printf("Script output: %s", strings.TrimSpace(string(output)))
+	}
 
 	return nil
 }
@@ -155,13 +184,17 @@ func (dm *DeploymentManager) Deploy() error {
 func (dm *DeploymentManager) InitEnvironment() error {
 	// 检查Docker和Docker Compose是否都已可用
 	if dm.IsDockerAvailable() && dm.IsDockerComposeAvailable() {
-		log.Printf("Docker and Docker Compose are already available")
+		if dm.logService != nil {
+			dm.logService.Info("deploy", "Docker and Docker Compose are already available")
+		} else {
+			log.Printf("Docker and Docker Compose are already available")
+		}
 		return nil
 	}
 
 	// 构建脚本路径
 	scriptPath := fmt.Sprintf("%s/init-env.sh", dm.scriptDir)
-	
+
 	// 检查脚本文件是否存在
 	if _, err := os.Stat(scriptPath); os.IsNotExist(err) {
 		return fmt.Errorf("script %s not found", scriptPath)
@@ -184,8 +217,13 @@ func (dm *DeploymentManager) InitEnvironment() error {
 	}
 
 	// 记录成功执行日志
-	log.Printf("Successfully executed init-env script")
-	log.Printf("Script output: %s", strings.TrimSpace(string(output)))
+	if dm.logService != nil {
+		dm.logService.Info("deploy", "Successfully executed init-env script")
+		dm.logService.Info("deploy", "Script output", logs.LogField{Key: "output", Value: strings.TrimSpace(string(output))})
+	} else {
+		log.Printf("Successfully executed init-env script")
+		log.Printf("Script output: %s", strings.TrimSpace(string(output)))
+	}
 
 	// 检查Docker和Docker Compose现在是否可用
 	if !dm.IsDockerAvailable() || !dm.IsDockerComposeAvailable() {
@@ -204,7 +242,7 @@ func (dm *DeploymentManager) Cleanup() error {
 
 	// 构建脚本路径
 	scriptPath := fmt.Sprintf("%s/cleanup.sh", dm.scriptDir)
-	
+
 	// 检查脚本文件是否存在
 	if _, err := os.Stat(scriptPath); os.IsNotExist(err) {
 		return fmt.Errorf("script %s not found", scriptPath)
@@ -227,8 +265,13 @@ func (dm *DeploymentManager) Cleanup() error {
 	}
 
 	// 记录成功执行日志
-	log.Printf("Successfully executed cleanup script")
-	log.Printf("Script output: %s", strings.TrimSpace(string(output)))
+	if dm.logService != nil {
+		dm.logService.Info("deploy", "Successfully executed cleanup script")
+		dm.logService.Info("deploy", "Script output", logs.LogField{Key: "output", Value: strings.TrimSpace(string(output))})
+	} else {
+		log.Printf("Successfully executed cleanup script")
+		log.Printf("Script output: %s", strings.TrimSpace(string(output)))
+	}
 
 	return nil
 }
