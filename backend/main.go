@@ -1,6 +1,5 @@
 // backend/main.go
 // TeamSpeak一键部署工具主程序入口
-// 作者: TeamSpeak Deploy Team
 // 版本: v1.0.0
 // 功能: 初始化各模块服务，启动HTTP服务器，提供TeamSpeak服务器一键部署功能
 package main
@@ -27,48 +26,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// LogServiceAdapter 日志服务适配器，将logs.LogService转换为utils.LogServiceAdapter
-// 实现适配器模式，统一不同模块的日志接口
-type LogServiceAdapter struct {
-	logService logs.LogService
-}
-
-// Info 记录信息级别日志
-// 参数: module - 模块名称, message - 日志消息, fields - 键值对字段
-func (l *LogServiceAdapter) Info(module, message string, fields ...interface{}) {
-	logFields := make([]logs.LogField, 0, len(fields)/2)
-	for i := 0; i < len(fields)-1; i += 2 {
-		if key, ok := fields[i].(string); ok {
-			logFields = append(logFields, logs.LogField{Key: key, Value: fields[i+1]})
-		}
-	}
-	l.logService.Info(module, message, logFields...)
-}
-
-// Warn 记录警告级别日志
-// 参数: module - 模块名称, message - 日志消息, fields - 键值对字段
-func (l *LogServiceAdapter) Warn(module, message string, fields ...interface{}) {
-	logFields := make([]logs.LogField, 0, len(fields)/2)
-	for i := 0; i < len(fields)-1; i += 2 {
-		if key, ok := fields[i].(string); ok {
-			logFields = append(logFields, logs.LogField{Key: key, Value: fields[i+1]})
-		}
-	}
-	l.logService.Warn(module, message, logFields...)
-}
-
-// Error 记录错误级别日志
-// 参数: module - 模块名称, message - 日志消息, fields - 键值对字段
-func (l *LogServiceAdapter) Error(module, message string, fields ...interface{}) {
-	logFields := make([]logs.LogField, 0, len(fields)/2)
-	for i := 0; i < len(fields)-1; i += 2 {
-		if key, ok := fields[i].(string); ok {
-			logFields = append(logFields, logs.LogField{Key: key, Value: fields[i+1]})
-		}
-	}
-	l.logService.Error(module, message, logFields...)
-}
-
 // main 主函数，程序入口点
 // 功能: 初始化所有服务模块，启动HTTP服务器，处理优雅关闭
 func main() {
@@ -83,15 +40,27 @@ func main() {
 		log.Fatalf("Failed to load config: %v", loadCfgErr)
 	}
 
-	// 初始化日志服务
+	log.Println("TeamSpeak一键部署工具启动中...")
+
+	// 初始化认证模块
+	auth.Init(cfg)
+	log.Println("认证模块初始化完成")
+
+	// 初始化数据库
+	if dataBaseErr := server.InitDatabase(cfg); dataBaseErr != nil {
+		log.Fatalf("Failed to initialize database: %v", dataBaseErr)
+	}
+	log.Println("数据库初始化完成")
+
+	// 初始化日志服务（在数据库初始化之后）
 	logService, logErr := logs.Init(cfg)
 	if logErr != nil {
 		log.Fatalf("Failed to initialize log service: %v", logErr)
 	}
 	defer logService.Close()
 
-	// 创建日志服务适配器
-	logAdapter := &LogServiceAdapter{logService: logService}
+	// 创建日志适配器
+	logAdapter := logs.NewLogServiceAdapter(logService)
 
 	// 设置各模块的日志服务
 	utils.SetLogService(logAdapter)
@@ -99,18 +68,7 @@ func main() {
 	instance.SetLogService(logService)
 	auth.SetLogService(logService)
 
-	logService.Info("main", "TeamSpeak一键部署工具启动中...")
-
-	// 初始化认证模块
-	auth.Init(cfg)
-	logService.Info("main", "认证模块初始化完成")
-
-	// 初始化数据库
-	if dataBaseErr := server.InitDatabase(cfg); dataBaseErr != nil {
-		logService.Error("main", "Failed to initialize database", logs.LogField{Key: "error", Value: dataBaseErr})
-		log.Fatalf("Failed to initialize database: %v", dataBaseErr)
-	}
-	logService.Info("main", "数据库初始化完成")
+	logService.Info("main", "日志服务初始化完成")
 
 	// 确保在程序退出时关闭数据库连接
 	defer func() {
@@ -199,7 +157,7 @@ func main() {
 	// kill -9 is syscall.SIGKILL but can't be caught, so don't need add it
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
-	logService.Info("main", "收到关闭信号，开始优雅关闭服务器...")
+	logService.Info("main", "收到关闭信号，开始关闭服务器...")
 
 	// 设置5秒的超时时间来关闭服务器
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -211,5 +169,5 @@ func main() {
 		log.Fatal("Server forced to shutdown:", err)
 	}
 
-	logService.Info("main", "服务器已优雅关闭")
+	logService.Info("main", "服务器关闭")
 }

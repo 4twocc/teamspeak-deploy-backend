@@ -34,9 +34,9 @@ var (
 )
 
 // SetLogService 设置全局实例服务的日志服务
-func SetLogService(logService logs.LogService) {
+func SetLogService(ls logs.LogService) {
 	if instanceService != nil {
-		instanceService.SetLogService(logService)
+		instanceService.SetLogService(ls)
 	}
 }
 

@@ -188,8 +188,8 @@ type LogServiceAdapter interface {
 var logService LogServiceAdapter
 
 // SetLogService 设置日志服务
-func SetLogService(service LogServiceAdapter) {
-	logService = service
+func SetLogService(ls LogServiceAdapter) {
+	logService = ls
 }
 
 // discoverAndLoadDotEnv 搜索并加载项目根目录下的 .env 文件。

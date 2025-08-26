@@ -304,8 +304,8 @@ func (s *Service) UpdateInstance(ctx context.Context, id string, input *UpdateIn
 
 	// 更新数据库
 	err = s.db.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Save(instance).Error; err != nil {
-			return fmt.Errorf("failed to update instance: %w", err)
+		if dberr := tx.Save(instance).Error; dberr != nil {
+			return fmt.Errorf("failed to update instance: %w", dberr)
 		}
 
 		// 添加更新日志
@@ -465,11 +465,11 @@ func (s *Service) startInstanceProcess(instance *Instance) {
 		if err := cmd.Start(); err != nil {
 			instance.AddLog(tx, "error", fmt.Sprintf("启动进程失败: %v", err))
 			instance.SetStatus(StatusError)
-			if err := tx.Save(instance).Error; err != nil {
+			if txSaveErr := tx.Save(instance).Error; txSaveErr != nil {
 				if s.logService != nil {
-					s.logService.Error("instance", "更新实例状态失败", logs.LogField{Key: "error", Value: err}, logs.LogField{Key: "instance_id", Value: instance.ID})
+					s.logService.Error("instance", "更新实例状态失败", logs.LogField{Key: "error", Value: txSaveErr}, logs.LogField{Key: "instance_id", Value: instance.ID})
 				} else {
-					log.Printf("更新实例状态失败: %v", err)
+					log.Printf("更新实例状态失败: %v", txSaveErr)
 				}
 			}
 			return err
@@ -836,8 +836,8 @@ func (s *Service) monitorInstance(instance *Instance, cmd *exec.Cmd) {
 	err = s.db.Transaction(func(tx *gorm.DB) error {
 		// 获取最新状态的实例
 		var currentInstance Instance
-		if err := tx.First(&currentInstance, "id = ?", instance.ID).Error; err != nil {
-			return fmt.Errorf("获取实例状态失败: %w", err)
+		if txFirstErr := tx.First(&currentInstance, "id = ?", instance.ID).Error; txFirstErr != nil {
+			return fmt.Errorf("获取实例状态失败: %w", txFirstErr)
 		}
 
 		// 如果实例已经被手动停止，则不更新状态
@@ -876,8 +876,8 @@ func (s *Service) monitorInstance(instance *Instance, cmd *exec.Cmd) {
 		}
 
 		// 更新实例状态
-		if err := tx.Model(&currentInstance).Updates(updateData).Error; err != nil {
-			return fmt.Errorf("更新实例状态失败: %w", err)
+		if txModelErr := tx.Model(&currentInstance).Updates(updateData).Error; txModelErr != nil {
+			return fmt.Errorf("更新实例状态失败: %w", txModelErr)
 		}
 
 		return nil
@@ -1070,13 +1070,13 @@ func (s *Service) stopInstance(instance *Instance) error {
 	// 3. 更新状态
 	err = s.db.Transaction(func(tx *gorm.DB) error {
 		// 更新实例状态
-		if err := tx.Model(instance).Update("status", StatusStopped).Error; err != nil {
-			return fmt.Errorf("更新实例状态失败: %w", err)
+		if ModelStatusErr := tx.Model(instance).Update("status", StatusStopped).Error; ModelStatusErr != nil {
+			return fmt.Errorf("更新实例状态失败: %w", ModelStatusErr)
 		}
 
 		// 清除进程ID
-		if err := tx.Model(instance).Update("process_id", 0).Error; err != nil {
-			return fmt.Errorf("清除进程ID失败: %w", err)
+		if ModelProcessIDErr := tx.Model(instance).Update("process_id", 0).Error; ModelProcessIDErr != nil {
+			return fmt.Errorf("清除进程ID失败: %w", ModelProcessIDErr)
 		}
 
 		// 添加日志
@@ -1108,19 +1108,19 @@ func (s *Service) startInstance(instance *Instance) error {
 	}
 
 	// 2. 启动进程
-	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("启动进程失败: %w", err)
+	if CmdStartErr := cmd.Start(); CmdStartErr != nil {
+		return fmt.Errorf("启动进程失败: %w", CmdStartErr)
 	}
 
 	// 3. 更新状态
 	err = s.db.Transaction(func(tx *gorm.DB) error {
 		// 更新实例状态
-		if err := tx.Model(instance).Updates(map[string]any{
+		if ModelInstanceErr := tx.Model(instance).Updates(map[string]any{
 			"status":     StatusRunning,
 			"process_id": cmd.Process.Pid,
 			"started_at": time.Now(),
-		}).Error; err != nil {
-			return fmt.Errorf("更新实例状态失败: %w", err)
+		}).Error; ModelInstanceErr != nil {
+			return fmt.Errorf("更新实例状态失败: %w", ModelInstanceErr)
 		}
 
 		// 添加日志

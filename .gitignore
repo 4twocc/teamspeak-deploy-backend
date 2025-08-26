@@ -30,6 +30,7 @@ data/
 backend/main
 frontend/dist/
 frontend/node_modules/
+teamspeak-deploy
 
 # Logs
 *.log
