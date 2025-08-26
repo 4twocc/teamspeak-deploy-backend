@@ -67,6 +67,7 @@ func main() {
 	server.SetLogService(logService)
 	instance.SetLogService(logService)
 	auth.SetLogService(logService)
+	monitor.SetLogService(logService)
 
 	logService.Info("main", "日志服务初始化完成")
 
@@ -162,6 +163,11 @@ func main() {
 	// 设置5秒的超时时间来关闭服务器
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
+
+	// 关闭监控模块
+	if err := monitor.Close(); err != nil {
+		logService.Error("main", "监控模块关闭失败", logs.LogField{Key: "error", Value: err})
+	}
 
 	// 优雅关闭服务器
 	if err := srv.Shutdown(ctx); err != nil {

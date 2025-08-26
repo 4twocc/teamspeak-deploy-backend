@@ -74,11 +74,13 @@ func SetLogService(ls logs.LogService) {
 
 // Initialize 初始化监控模块
 func Initialize(cfg *configPkg.Config) error {
-	// 初始化日志服务
-	if cfg != nil {
+	// 注意：监控模块不应该创建自己的日志服务实例
+	// 应该使用main.go中设置的全局日志服务
+	// 如果没有设置日志服务，则创建一个仅文件输出的日志服务
+	if cfg != nil && logService == nil {
 		if ls, err := logs.NewLogService(nil, logs.LogConfig{
 			Level:         cfg.Logging.Level,
-			EnableDB:      cfg.Logging.EnableDatabase,
+			EnableDB:      false, // 监控模块不使用数据库日志，避免并发问题
 			RetentionDays: cfg.Logging.RetentionDays,
 			BatchSize:     cfg.Logging.BatchSize,
 			BatchInterval: int(cfg.Logging.FlushInterval.Seconds()),

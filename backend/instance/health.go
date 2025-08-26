@@ -444,7 +444,7 @@ func NewHealthMonitor(db *gorm.DB) *HealthMonitor {
 	if ls, err := logs.NewLogService(nil, logs.LogConfig{
 		Level:      "info",
 		EnableFile: true,
-		FilePath:   "logs/health.log",
+		FilePath:   "../.logs/health.log",
 	}); err == nil {
 		hm.logService = ls
 	}

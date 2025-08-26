@@ -42,12 +42,12 @@ show_usage() {
     print_info "示例:"
     print_info "  ./start-backend.sh              # 前台运行"
     print_info "  ./start-backend.sh -d           # 后台运行"
-    print_info "  ./start-backend.sh -d -l app.log # 后台运行并指定日志文件"
+    print_info "  ./start-backend.sh -d -l .logs/app.log # 后台运行并指定日志文件"
 }
 
 # 默认参数
 DAEMON=false
-LOG_FILE="backend.log"
+LOG_FILE=".logs/backend.log"
 
 # 解析命令行参数
 while [[ $# -gt 0 ]]; do
@@ -128,6 +128,10 @@ cd ..
 if [ "$DAEMON" = true ]; then
     print_info "以后台模式启动服务..."
     print_info "日志文件: $LOG_FILE"
+    
+    # 确保日志目录存在
+    mkdir -p "$(dirname "$LOG_FILE")"
+    
     nohup ./backend/teamspeak-backend > "$LOG_FILE" 2>&1 &
     PID=$!
     echo $PID > backend.pid

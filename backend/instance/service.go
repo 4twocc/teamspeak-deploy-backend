@@ -95,7 +95,7 @@ func NewService(db *gorm.DB, alertManager *AlertManager) *Service {
 		BatchSize:     100,
 		BatchInterval: 60,
 		EnableFile:    true,
-		FilePath:      "logs/instance.log",
+		FilePath:      "../.logs/instance.log",
 	}
 	logService, err := logs.NewLogService(db, logConfig)
 	if err != nil {

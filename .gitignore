@@ -10,6 +10,7 @@
 
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
+.logs
 
 # Dependency directories
 vendor/
@@ -31,9 +32,8 @@ backend/main
 frontend/dist/
 frontend/node_modules/
 teamspeak-deploy
-
-# Logs
-*.log
+teamspeak-backend
+backend.pid
 
 # OS generated files
 .DS_Store
@@ -48,14 +48,6 @@ Thumbs.db
 # backend
 data/*
 teamspeak-one-click-deploy
-
-# Logs
-logs
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-lerna-debug.log*
 
 node_modules
 .DS_Store

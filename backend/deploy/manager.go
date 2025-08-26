@@ -30,7 +30,7 @@ func NewDeploymentManager(scriptDir string) *DeploymentManager {
 	if ls, err := logs.NewLogService(nil, logs.LogConfig{
 		Level:      "info",
 		EnableFile: true,
-		FilePath:   "logs/deploy.log",
+		FilePath:   "../.logs/deploy.log",
 	}); err == nil {
 		dm.logService = ls
 	}
