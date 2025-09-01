@@ -49,9 +49,22 @@
    docker exec teamspeak_container_id cat /var/lib/teamspeak/data/first_run.log | grep -i password
    ```
 
-4. 访问 Web 界面：
+5. 访问 Web 界面：
    - API: http://localhost:8080
 
+
+## 查看sqlite数据库
+```bash
+docker exec -it teamspeak_container_id /bin/sh
+
+cd /data
+ - teamspeak.db
+
+# 查看数据库表
+.tables
+# 查看表结构
+.schema table_name
+```
 ## 安全配置
 
 项目使用环境变量来管理敏感信息，避免将密码等敏感数据提交到代码仓库。
