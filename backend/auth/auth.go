@@ -43,7 +43,7 @@ func RegisterRoutes(router *gin.Engine) {
 }
 
 // registerHandler 处理用户注册
-// @param c gin上下文
+// param: c gin上下文
 // @return 注册成功返回用户信息和token，失败返回错误信息
 func registerHandler(c *gin.Context) {
 	var req RegisterRequest
@@ -213,7 +213,7 @@ func loginHandler(c *gin.Context) {
 // 支持两种模式：
 // 1. 通过路径参数uid查询指定用户信息（需要JWT认证）
 // 2. 如果uid参数为空或无效，则返回JWT token中的当前用户信息
-// @param c gin上下文
+// param: c gin上下文
 // @return 返回用户信息或错误信息
 func infoHandler(c *gin.Context) {
 	// 确保用户已通过JWT认证

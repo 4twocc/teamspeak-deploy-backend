@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"gopkg.in/yaml.v3"
@@ -28,6 +29,7 @@ type ServerConfig struct {
 	Auth       AuthConfig       `yaml:"auth"`
 	CORS       CORSConfig       `yaml:"cors"`
 	Middleware MiddlewareConfig `yaml:"middleware"`
+	Docs       DocsConfig       `yaml:"docs"`
 }
 
 // RateLimitConfig 限流配置
@@ -262,6 +264,26 @@ func loadSensitiveConfigFromEnv(config *Config) {
 		config.Server.LogLevel = logLevel
 	}
 
+	// 从环境变量加载文档开关
+	if v := os.Getenv("SERVER_DOCS_ENABLED"); v != "" {
+	if b, err := strconv.ParseBool(v); err == nil {
+		config.Server.Docs.Enabled = b
+	}
+	}
+
+	// 从环境变量加载文档访问白名单（逗号分隔，支持 IP 与 CIDR）
+	if v := os.Getenv("SERVER_DOCS_WHITELIST"); v != "" {
+	parts := strings.Split(v, ",")
+	list := make([]string, 0, len(parts))
+	for _, p := range parts {
+		s := strings.TrimSpace(p)
+		if s != "" {
+			list = append(list, s)
+		}
+	}
+	config.Server.Docs.Whitelist = list
+	}
+
 	// 从环境变量加载监控配置
 	if interval := os.Getenv("MONITORING_COLLECT_INTERVAL"); interval != "" {
 		if d, err := time.ParseDuration(interval); err == nil {
@@ -313,6 +335,10 @@ func DefaultConfig() *Config {
 			},
 			Middleware: MiddlewareConfig{
 				EnableAccessLog: true,
+			},
+			Docs: DocsConfig{
+				Enabled:   false,
+				Whitelist: []string{},
 			},
 		},
 		Database: DatabaseConfig{
@@ -387,4 +413,16 @@ func DefaultConfig() *Config {
 			Timeout:   10 * time.Minute,
 		},
 	}
+}
+
+// DocsConfig 文档相关配置
+// @author: system
+// @version: v1
+// @description: 控制 Swagger 文档开关与访问白名单。
+type DocsConfig struct {
+    // Enabled 控制是否启用 Swagger 文档
+    Enabled bool `yaml:"enabled"`
+    
+    // Whitelist 允许访问文档的 IP 或 CIDR 列表，留空表示不限制
+    Whitelist []string `yaml:"whitelist"`
 }

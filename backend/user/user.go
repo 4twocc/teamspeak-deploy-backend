@@ -55,9 +55,9 @@ func ensureTables(db *gorm.DB) error {
 
 // listHandler 获取用户列表
 // 支持分页查询，如果提供page和pageSize参数则返回分页数据，否则返回全部数据
-// @param page 页码，从1开始
-// @param pageSize 每页数量，最大100
-// @return 分页数据包含list、total、page、pages字段，非分页直接返回用户数组
+// param: page 页码，从1开始
+// param: pageSize 每页数量，最大100
+// return: 分页数据包含list、total、page、pages字段，非分页直接返回用户数组
 func listHandler(c *gin.Context) {
 	q := c.Request.URL.Query()
 	

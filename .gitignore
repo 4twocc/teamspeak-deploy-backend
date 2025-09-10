@@ -23,6 +23,9 @@ Godeps/
 # Environment files
 .env
 .env.*
+.env.development
+.env.production
+!.env.example
 
 # Data directory
 data/
@@ -32,8 +35,6 @@ backend/main
 frontend/dist/
 frontend/node_modules/
 teamspeak-deploy
-teamspeak-backend
-backend.pid
 
 # OS generated files
 .DS_Store
@@ -47,6 +48,7 @@ Thumbs.db
 # Original .gitignore content
 # backend
 data/*
+test/*
 teamspeak-one-click-deploy
 
 node_modules
@@ -72,3 +74,5 @@ coverage
 *.tsbuildinfo
 .node-version
 /test/*
+backend/logs/app.log
+docs/

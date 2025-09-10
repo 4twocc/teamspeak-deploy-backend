@@ -100,6 +100,19 @@ func (h *Handler) getInstanceResourcesGin(c *gin.Context) {
 }
 
 // getInstanceResources 获取实例资源使用情况
+// @Summary 获取实例资源使用情况
+// @Description 获取指定 TeamSpeak 实例的 CPU、内存、磁盘与网络等资源使用情况
+// @Tags 实例管理
+// @Accept json
+// @Produce json
+// @Param id path string true "实例ID"
+// @Success 200 {object} utils.APIResponse{data=ResourceUsage} "成功获取资源使用情况"
+// @Failure 400 {object} utils.APIResponse "请求参数错误"
+// @Failure 401 {object} utils.APIResponse "未授权"
+// @Failure 404 {object} utils.APIResponse "实例不存在或未运行"
+// @Failure 500 {object} utils.APIResponse "服务器内部错误"
+// @Security BearerAuth
+// @Router /instances/{id}/resources [get]
 func (h *Handler) getInstanceResources(w http.ResponseWriter, r *http.Request) {
 	// 获取实例ID
 	id := r.Context().Value(idKey).(string)
@@ -131,10 +144,11 @@ func (h *Handler) getInstanceResources(w http.ResponseWriter, r *http.Request) {
 // @Produce json
 // @Param page query int false "页码，默认为1" default(1)
 // @Param page_size query int false "每页条数，默认为10，最大100" default(10)
-// @Success 200 {object} utils.Response{data=[]Instance} "成功获取实例列表"
-// @Failure 400 {object} utils.ErrorResponse "请求参数错误"
-// @Failure 401 {object} utils.ErrorResponse "未授权"
-// @Failure 500 {object} utils.ErrorResponse "服务器内部错误"
+// @Success 200 {object} utils.APIResponse{data=[]Instance} "成功获取实例列表"
+// @Failure 400 {object} utils.APIResponse "请求参数错误"
+// @Failure 401 {object} utils.APIResponse "未授权"
+// @Failure 500 {object} utils.APIResponse "服务器内部错误"
+// @Security BearerAuth
 // @Router /instances [get]
 func (h *Handler) listInstances(w http.ResponseWriter, r *http.Request) {
 	// 解析分页参数
@@ -185,11 +199,12 @@ func (h *Handler) listInstances(w http.ResponseWriter, r *http.Request) {
 // @Accept json
 // @Produce json
 // @Param instance body CreateInstanceInput true "实例创建信息"
-// @Success 201 {object} utils.Response{data=Instance} "成功创建实例"
-// @Failure 400 {object} utils.ErrorResponse "请求参数错误"
-// @Failure 401 {object} utils.ErrorResponse "未授权"
-// @Failure 409 {object} utils.ErrorResponse "实例已存在"
-// @Failure 500 {object} utils.ErrorResponse "服务器内部错误"
+// @Success 201 {object} utils.APIResponse{data=Instance} "成功创建实例"
+// @Failure 400 {object} utils.APIResponse "请求参数错误"
+// @Failure 401 {object} utils.APIResponse "未授权"
+// @Failure 409 {object} utils.APIResponse "实例已存在"
+// @Failure 500 {object} utils.APIResponse "服务器内部错误"
+// @Security BearerAuth
 // @Router /instances [post]
 func (h *Handler) createInstance(w http.ResponseWriter, r *http.Request) {
 	// 解析请求体
@@ -224,11 +239,12 @@ func (h *Handler) createInstance(w http.ResponseWriter, r *http.Request) {
 // @Accept json
 // @Produce json
 // @Param id path string true "实例ID"
-// @Success 200 {object} utils.Response{data=Instance} "成功获取实例详情"
-// @Failure 400 {object} utils.ErrorResponse "请求参数错误"
-// @Failure 401 {object} utils.ErrorResponse "未授权"
-// @Failure 404 {object} utils.ErrorResponse "实例不存在"
-// @Failure 500 {object} utils.ErrorResponse "服务器内部错误"
+// @Success 200 {object} utils.APIResponse{data=Instance} "成功获取实例详情"
+// @Failure 400 {object} utils.APIResponse "请求参数错误"
+// @Failure 401 {object} utils.APIResponse "未授权"
+// @Failure 404 {object} utils.APIResponse "实例不存在"
+// @Failure 500 {object} utils.APIResponse "服务器内部错误"
+// @Security BearerAuth
 // @Router /instances/{id} [get]
 func (h *Handler) getInstance(w http.ResponseWriter, r *http.Request) {
 	// 获取实例ID
@@ -261,11 +277,12 @@ func (h *Handler) getInstance(w http.ResponseWriter, r *http.Request) {
 // @Produce json
 // @Param id path string true "实例ID"
 // @Param instance body UpdateInstanceInput true "实例更新信息"
-// @Success 200 {object} utils.Response{data=Instance} "成功更新实例"
-// @Failure 400 {object} utils.ErrorResponse "请求参数错误"
-// @Failure 401 {object} utils.ErrorResponse "未授权"
-// @Failure 404 {object} utils.ErrorResponse "实例不存在"
-// @Failure 500 {object} utils.ErrorResponse "服务器内部错误"
+// @Success 200 {object} utils.APIResponse{data=Instance} "成功更新实例"
+// @Failure 400 {object} utils.APIResponse "请求参数错误"
+// @Failure 401 {object} utils.APIResponse "未授权"
+// @Failure 404 {object} utils.APIResponse "实例不存在"
+// @Failure 500 {object} utils.APIResponse "服务器内部错误"
+// @Security BearerAuth
 // @Router /instances/{id} [put]
 func (h *Handler) updateInstance(w http.ResponseWriter, r *http.Request) {
 	// 获取实例ID
@@ -310,11 +327,12 @@ func (h *Handler) updateInstance(w http.ResponseWriter, r *http.Request) {
 // @Accept json
 // @Produce json
 // @Param id path string true "实例ID"
-// @Success 204 {object} utils.Response "成功删除实例"
-// @Failure 400 {object} utils.ErrorResponse "请求参数错误"
-// @Failure 401 {object} utils.ErrorResponse "未授权"
-// @Failure 404 {object} utils.ErrorResponse "实例不存在"
-// @Failure 500 {object} utils.ErrorResponse "服务器内部错误"
+// @Success 204 {object} utils.APIResponse "成功删除实例"
+// @Failure 400 {object} utils.APIResponse "请求参数错误"
+// @Failure 401 {object} utils.APIResponse "未授权"
+// @Failure 404 {object} utils.APIResponse "实例不存在"
+// @Failure 500 {object} utils.APIResponse "服务器内部错误"
+// @Security BearerAuth
 // @Router /instances/{id} [delete]
 func (h *Handler) deleteInstance(w http.ResponseWriter, r *http.Request) {
 	// 获取实例ID
@@ -349,12 +367,13 @@ func (h *Handler) deleteInstance(w http.ResponseWriter, r *http.Request) {
 // @Accept json
 // @Produce json
 // @Param id path string true "实例ID"
-// @Success 200 {object} utils.Response{data=Instance} "成功启动实例"
-// @Failure 400 {object} utils.ErrorResponse "请求参数错误"
-// @Failure 401 {object} utils.ErrorResponse "未授权"
-// @Failure 404 {object} utils.ErrorResponse "实例不存在"
-// @Failure 409 {object} utils.ErrorResponse "实例状态冲突"
-// @Failure 500 {object} utils.ErrorResponse "服务器内部错误"
+// @Success 200 {object} utils.APIResponse{data=Instance} "成功启动实例"
+// @Failure 400 {object} utils.APIResponse "请求参数错误"
+// @Failure 401 {object} utils.APIResponse "未授权"
+// @Failure 404 {object} utils.APIResponse "实例不存在"
+// @Failure 409 {object} utils.APIResponse "实例状态冲突"
+// @Failure 500 {object} utils.APIResponse "服务器内部错误"
+// @Security BearerAuth
 // @Router /instances/{id}/start [post]
 func (h *Handler) startInstance(w http.ResponseWriter, r *http.Request) {
 	// 获取实例ID
@@ -389,12 +408,13 @@ func (h *Handler) startInstance(w http.ResponseWriter, r *http.Request) {
 // @Accept json
 // @Produce json
 // @Param id path string true "实例ID"
-// @Success 200 {object} utils.Response{data=Instance} "成功停止实例"
-// @Failure 400 {object} utils.ErrorResponse "请求参数错误"
-// @Failure 401 {object} utils.ErrorResponse "未授权"
-// @Failure 404 {object} utils.ErrorResponse "实例不存在"
-// @Failure 409 {object} utils.ErrorResponse "实例状态冲突"
-// @Failure 500 {object} utils.ErrorResponse "服务器内部错误"
+// @Success 200 {object} utils.APIResponse{data=Instance} "成功停止实例"
+// @Failure 400 {object} utils.APIResponse "请求参数错误"
+// @Failure 401 {object} utils.APIResponse "未授权"
+// @Failure 404 {object} utils.APIResponse "实例不存在"
+// @Failure 409 {object} utils.APIResponse "实例状态冲突"
+// @Failure 500 {object} utils.APIResponse "服务器内部错误"
+// @Security BearerAuth
 // @Router /instances/{id}/stop [post]
 func (h *Handler) stopInstance(w http.ResponseWriter, r *http.Request) {
 	// 获取实例ID
@@ -429,12 +449,13 @@ func (h *Handler) stopInstance(w http.ResponseWriter, r *http.Request) {
 // @Accept json
 // @Produce json
 // @Param id path string true "实例ID"
-// @Success 200 {object} utils.Response{data=Instance} "成功重启实例"
-// @Failure 400 {object} utils.ErrorResponse "请求参数错误"
-// @Failure 401 {object} utils.ErrorResponse "未授权"
-// @Failure 404 {object} utils.ErrorResponse "实例不存在"
-// @Failure 409 {object} utils.ErrorResponse "实例状态冲突"
-// @Failure 500 {object} utils.ErrorResponse "服务器内部错误"
+// @Success 200 {object} utils.APIResponse{data=Instance} "成功重启实例"
+// @Failure 400 {object} utils.APIResponse "请求参数错误"
+// @Failure 401 {object} utils.APIResponse "未授权"
+// @Failure 404 {object} utils.APIResponse "实例不存在"
+// @Failure 409 {object} utils.APIResponse "实例状态冲突"
+// @Failure 500 {object} utils.APIResponse "服务器内部错误"
+// @Security BearerAuth
 // @Router /instances/{id}/restart [post]
 func (h *Handler) restartInstance(w http.ResponseWriter, r *http.Request) {
 	// 获取实例ID
@@ -464,18 +485,18 @@ func (h *Handler) restartInstance(w http.ResponseWriter, r *http.Request) {
 
 // getInstanceLogs 获取实例日志
 // @Summary 获取实例日志
-// @Description 分页获取指定 TeamSpeak 实例的日志
+// @Description 获取指定 TeamSpeak 实例的最新日志记录
 // @Tags 实例管理
 // @Accept json
 // @Produce json
 // @Param id path string true "实例ID"
-// @Param page query int false "页码，默认为1" default(1)
-// @Param page_size query int false "每页条数，默认为10，最大100" default(10)
-// @Success 200 {object} utils.Response{data=[]InstanceLog} "成功获取实例日志"
-// @Failure 400 {object} utils.ErrorResponse "请求参数错误"
-// @Failure 401 {object} utils.ErrorResponse "未授权"
-// @Failure 404 {object} utils.ErrorResponse "实例不存在"
-// @Failure 500 {object} utils.ErrorResponse "服务器内部错误"
+// @Param limit query int false "返回日志条数，默认为100，最大1000" minimum(1) maximum(1000)
+// @Success 200 {object} utils.APIResponse{data=[]InstanceLog} "成功获取实例日志"
+// @Failure 400 {object} utils.APIResponse "请求参数错误"
+// @Failure 401 {object} utils.APIResponse "未授权"
+// @Failure 404 {object} utils.APIResponse "实例不存在"
+// @Failure 500 {object} utils.APIResponse "服务器内部错误"
+// @Security BearerAuth
 // @Router /instances/{id}/logs [get]
 func (h *Handler) getInstanceLogs(w http.ResponseWriter, r *http.Request) {
 	// 获取实例ID

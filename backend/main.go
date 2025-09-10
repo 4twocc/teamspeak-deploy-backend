@@ -2,6 +2,18 @@
 // TeamSpeak一键部署工具主程序入口
 // 版本: v1.0.0
 // 功能: 初始化各模块服务，启动HTTP服务器，提供TeamSpeak服务器一键部署功能
+
+// @title TeamSpeak 一键部署工具 API 文档
+// @version 1.0.0
+// @description 提供 TeamSpeak 服务器一键部署、实例管理、监控与用户管理等接口。
+// @BasePath /api
+// @schemes http https
+// @contact.name TeamSpeak Deploy Maintainers
+// @contact.url https://github.com/4twocc
+// @contact.email sjh4two@gmail.com
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
 package main
 
 import (

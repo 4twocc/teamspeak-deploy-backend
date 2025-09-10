@@ -12,6 +12,11 @@ import (
 	"teamspeak-one-click-deploy/user"
 
 	"github.com/gin-gonic/gin"
+
+	// Swagger 相关依赖，仅在非生产环境启用
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
+	"teamspeak-one-click-deploy/docs"
 )
 
 // RegisterRoutes 统一注册所有模块的路由
@@ -40,4 +45,13 @@ func RegisterRoutes(router *gin.Engine) {
 	monitor.RegisterRoutes(monitorMux)
 	// 将监控路由挂载到 Gin
 	router.Any("/api/monitor/*any", gin.WrapH(monitorMux))
+
+	// ---------------- Swagger 文档（仅非生产环境启用）----------------
+	// 为避免在生产环境暴露 API 文档，仅当 gin.Mode() 不是 ReleaseMode 时才挂载。
+	if gin.Mode() != gin.ReleaseMode {
+		// 可选：根据实际路由前缀设置 BasePath，默认即可
+		docs.SwaggerInfo.BasePath = "/"
+		// 访问地址示例：/docs/index.html
+		router.GET("/docs/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+	}
 }
