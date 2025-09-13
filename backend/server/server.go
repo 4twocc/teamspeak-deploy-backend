@@ -191,7 +191,8 @@ func SetupRouter(config *config.Config) (*gin.Engine, error) {
 	}
 
 	// 注册路由（必须在中间件之后）
-	router.RegisterRoutes(routerEngine)
+	// 使用带配置的注册方法，以启用 Swagger 文档的开关与白名单控制
+	router.RegisterRoutesWithConfig(routerEngine, config)
 
 	return routerEngine, nil
 }
