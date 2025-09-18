@@ -7,7 +7,7 @@ package hello
 import (
 	"context"
 
-	v1 "teamspeak-one-click-deploy/api/hello/v1"
+	"teamspeak-one-click-deploy/api/hello/v1"
 )
 
 type IHelloV1 interface {
