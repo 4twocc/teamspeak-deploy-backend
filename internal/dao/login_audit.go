@@ -8,15 +8,15 @@ import (
 	"teamspeak-one-click-deploy/internal/dao/internal"
 )
 
-// userDao is the data access object for the table user.
+// loginAuditDao is the data access object for the table login_audit.
 // You can define custom methods on it to extend its functionality as needed.
-type userDao struct {
-	*internal.UserDao
+type loginAuditDao struct {
+	*internal.LoginAuditDao
 }
 
 var (
-	// User is a globally accessible object for table user operations.
-	User = userDao{internal.NewUserDao()}
+	// LoginAudit is a globally accessible object for table login_audit operations.
+	LoginAudit = loginAuditDao{internal.NewLoginAuditDao()}
 )
 
 // Add your custom methods and functionality below.
