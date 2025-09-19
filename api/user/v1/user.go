@@ -7,46 +7,45 @@ import (
 )
 
 // create user
-type CreateReq struct {
+type CreateUserReq struct {
 	g.Meta   `path:"/user" method:"post" tags:"User" summary:"Create user"`
-	Username string `v:"required|length:2,18" dc:"user username"`
 	Email    string `v:"required|email" dc:"user email"`
 	Phone    string `v:"required|regex:^\\+?[1-9][0-9]{1,14}$" dc:"user phone (E.164)"`
 	Password string `v:"required|min:9|max:64" dc:"user password"`
 }
-type CreateRes struct {
+type CreateUserRes struct {
 	Uid string `json:"uid" dc:"user id"`
 }
 
 // update user
-type UpdateReq struct {
+type UpdateUserReq struct {
 	g.Meta `path:"/user/:uid" method:"put" tags:"User" summary:"Update user"`
 	Uid    string `in:"path" v:"required" dc:"user id"`
 }
-type UpdateRes struct{}
+type UpdateUserRes struct{}
 
 // delete user
-type DeleteReq struct {
+type DeleteUserReq struct {
 	g.Meta `path:"/user/:uid" method:"delete" tags:"User" summary:"Delete user"`
 	Uid    string `in:"path" v:"required" dc:"user id"`
 }
-type DeleteRes struct{}
+type DeleteUserRes struct{}
 
 // get user
-type GetReq struct {
+type GetUserReq struct {
 	g.Meta `path:"/user/:uid" method:"get" tags:"User" summary:"Get user"`
 	Uid    string `in:"path" v:"required" dc:"user id"`
 }
-type GetRes struct {
+type GetUserRes struct {
 	User *entity.Users `json:"user" dc:"user"`
 }
 
 // get user list
-type GetListReq struct {
+type GetUserListReq struct {
 	g.Meta `path:"/user/list" method:"get" tags:"User" summary:"Get user list"`
 	Page   int `in:"query" d:"1" v:"min:1" dc:"page number"`
 	Size   int `in:"query" d:"10" v:"min:1|max:100" dc:"page size"`
 }
-type GetListRes struct {
+type GetUserListRes struct {
 	Users []*entity.Users `json:"users" dc:"user list"`
 }

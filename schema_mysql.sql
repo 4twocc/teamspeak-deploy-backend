@@ -62,7 +62,7 @@ CREATE TABLE users (
 
 -- ===========================================================
 -- 用户档案表：user_profiles（一对一）
--- 说明：补充用户展示/偏好等信息，与认证/鉴权解耦
+-- 说明：补充用户展示/偏好等信息，与认证/鉴权解耦合
 -- ===========================================================
 CREATE TABLE user_profiles (
   user_id     BIGINT UNSIGNED NOT NULL COMMENT '用户ID=users.id',
@@ -84,7 +84,7 @@ CREATE TABLE user_profiles (
     FOREIGN KEY (user_id) REFERENCES users (id)
     ON DELETE CASCADE
     ON UPDATE RESTRICT
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='用户档案信息（与认证解耦）';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='用户档案信息（与认证解耦合）';
 
 -- ===========================================================
 -- 认证表：users_auth（一对一，密码/MFA）
@@ -219,7 +219,7 @@ CREATE TABLE login_audit (
 CREATE TABLE verification_tokens (
   id           BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '主键',
   user_id      BIGINT UNSIGNED NOT NULL COMMENT '用户ID=users.id',
-  token_type   ENUM('email_verify','password_reset','mfa_challenge') NOT NULL COMMENT '令牌类型',
+  token_type   ENUM('email_verify','password_reset','mfa_challenge','refresh') NOT NULL COMMENT '令牌类型',
   token_hash   VARBINARY(32)   NOT NULL COMMENT '令牌摘要（SHA-256）',
   expires_at   TIMESTAMP       NOT NULL COMMENT '过期时间',
   consumed_at  TIMESTAMP       NULL     COMMENT '消费时间（NULL表示未使用）',
