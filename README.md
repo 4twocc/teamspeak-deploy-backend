@@ -1,14 +1,10 @@
 # TeamSpeak One-Click Deploy
 
-一个用于一键部署和管理 TeamSpeak 服务器的工具。
+一个用于一键部署TeamSpeak 服务的工具。
 
 ## 功能特性
 
-- 一键部署 TeamSpeak 服务器
-- Web 管理界面
-- 实时监控和告警
-- 实例管理
-- 用户认证和权限管理
+- 一键部署 TeamSpeak 服务
 
 ## 安装和部署
 
@@ -17,130 +13,6 @@
 - Debian/Ubuntu 系统（推荐 Ubuntu 20.04+）
 - Docker 和 Docker Compose
 - 至少 1GB 内存
-
-### 部署步骤
-
-1. 克隆项目：
-   ```bash
-   git clone <repository-url>
-   cd teamspeak-one-click-deploy
-   ```
-
-2. 配置环境变量：
-   ```bash
-   # 生产环境
-   cp backend/.env.example backend/.env
-   # 开发环境
-   cp backend/.env.development.example backend/.env.development
-   # 编辑相应的环境变量文件，设置敏感配置
-   ```
-
-3. 启动服务：
-   ```bash
-   # 生产环境
-   docker-compose up -d
-   # 开发环境
-   docker-compose -f docker-compose.dev.yml up -d
-   ```
-
-4. 获取管理员凭证：
-   ```bash
-   # 查看TeamSpeak服务器管理员凭证
-   docker exec teamspeak_container_id cat /var/lib/teamspeak/data/first_run.log | grep -i password
-   ```
-
-5. 访问 Web 界面：
-   - API: http://localhost:8080
-
-
-## 查看sqlite数据库
-```bash
-docker exec -it teamspeak_container_id /bin/sh
-
-cd /data
- - teamspeak.db
-
-# 查看数据库表
-.tables
-# 查看表结构
-.schema table_name
-```
-## 安全配置
-
-项目使用环境变量来管理敏感信息，避免将密码等敏感数据提交到代码仓库。
-
-### 敏感配置项
-
-1. **TeamSpeak ServerQuery 密码**
-   - 环境变量: `TEAMSPEAK_PASSWORD`
-   - 用途: 连接到 TeamSpeak 服务器的查询接口，用于监控和管理
-
-2. **JWT Secret**
-   - 环境变量: `JWT_SECRET`
-   - 用途: 签名和验证用户认证 token
-   - 生成安全密钥: `openssl rand -base64 32`
-
-3. **TeamSpeak Server Query API Key**
-   - 环境变量: `TEAMSPEAK_SERVER_QUERY_APIKEY`
-   - 用途: 用于访问TeamSpeak Server Query API的API密钥
-
-4. **TeamSpeak Server Admin Token**
-   - 环境变量: `TEAMSPEAK_SERVER_ADMIN_TOKEN`
-   - 用途: 用于获取管理员权限的令牌
-
-5. **TeamSpeak Server Admin Username**
-   - 环境变量: `TEAMSPEAK_USERNAME`
-   - 用途: TeamSpeak服务器管理员用户名
-
-### 配置方法
-
-1. 复制示例环境变量文件：
-   ```bash
-   # 生产环境
-   cp backend/.env.example backend/.env
-   # 开发环境
-   cp backend/.env.development.example backend/.env.development
-   ```
-
-2. 编辑相应的环境变量文件，设置实际值：
-   ```bash
-   TEAMSPEAK_PASSWORD=your_actual_teamspeak_password
-   JWT_SECRET=your_actual_jwt_secret
-   TEAMSPEAK_SERVER_QUERY_APIKEY=your_actual_api_key
-   TEAMSPEAK_SERVER_ADMIN_TOKEN=your_actual_admin_token
-   TEAMSPEAK_USERNAME=serveradmin
-   ```
-
-3. 生成安全的JWT密钥：
-   ```bash
-   openssl rand -base64 32
-   ```
-
-## API 文档
-
-API 文档可通过 `/api/docs` 端点访问。
-
-## 目录结构
-
-```
-.
-├── backend             # 后端服务
-│   ├── api             # API 路由
-│   ├── auth            # 认证模块
-│   ├── config          # 配置管理
-│   ├── database        # 数据库访问
-│   ├── deploy          # 部署模块
-│   ├── instance        # 实例管理
-│   ├── monitor         # 监控模块
-│   ├── users           # 用户管理
-│   ├── utils           # 工具函数
-│   ├── config.yaml     # 配置文件
-│   ├── entrypoint.sh   # TeamSpeak 容器入口点脚本
-│   └── main.go         # 主程序入口
-│ 
-├── deploy-scripts      # 部署脚本
-└── docker-compose.yml
-```
 
 ## 部署脚本
 
@@ -216,18 +88,18 @@ Get "https://registry-1.docker.io/v2/": net/http: request canceled while waiting
    ```bash
    sudo mkdir -p /etc/docker
    sudo tee /etc/docker/daemon.json <<EOF
-{
-  "registry-mirrors": [
-    "https://mirror.aliyuncs.com",
-    "https://docker.m.daocloud.io",
-    "https://docker.nju.edu.cn",
-    "https://docker.mirrors.ustc.edu.cn",
-    "https://mirror.iscas.ac.cn",
-    "https://dockerproxy.com",
-    "https://hub-mirror.c.163.com"
-  ]
-}
-EOF
+   {
+      "registry-mirrors": [
+         "https://mirror.aliyuncs.com",
+         "https://docker.m.daocloud.io",
+         "https://docker.nju.edu.cn",
+         "https://docker.mirrors.ustc.edu.cn",
+         "https://mirror.iscas.ac.cn",
+         "https://dockerproxy.com",
+         "https://hub-mirror.c.163.com"
+      ]
+   }
+   EOF
    sudo systemctl daemon-reload
    sudo systemctl restart docker
    ```
