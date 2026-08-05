@@ -59,14 +59,6 @@ cd deploy-scripts
 
 4. **cleanup.sh**: 清理脚本，用于停止和删除TeamSpeak服务
 
-## 开发指南
-
-### 后端开发
-
-1. 安装 Go 1.24.3+
-2. 安装依赖: `go mod tidy`
-3. 运行服务: `go run main.go`
-
 ## 常见问题
 
 ### Docker镜像拉取失败
